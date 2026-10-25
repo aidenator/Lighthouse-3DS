@@ -575,7 +575,39 @@ endif()
 option(LH_ROM_EXTRACT "Slim builds: make bk.o2r from a ROM in the app folder when it is missing" ${LH_ROM_EXTRACT_DEFAULT})
 if(LH_SLIM AND LH_ROM_EXTRACT)
     add_subdirectory(Torch)
-    target_compile_definitions(${PROJECT_NAME} PRIVATE LH_ROM_EXTRACT=1)
+    # What the archive made from a ROM depends on: Torch and the asset lists it reads. The app
+    # stamps this into the archive and remakes an archive stamped with anything else, so a release
+    # only asks for a new bk.o2r when these change, not on every version bump.
+    file(GLOB_RECURSE _lh_stamp_files CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/assets/*.yaml)
+    list(SORT _lh_stamp_files)
+    list(PREPEND _lh_stamp_files ${CMAKE_CURRENT_SOURCE_DIR}/config.yml)
+    set(_lh_stamp_input "")
+    foreach(_lh_file ${_lh_stamp_files})
+        file(SHA1 ${_lh_file} _lh_hash)
+        string(APPEND _lh_stamp_input "${_lh_hash}")
+    endforeach()
+    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/config.yml)
+    # safe.directory: the build container's user doesn't own the checkout
+    execute_process(COMMAND git -c safe.directory=* -C ${CMAKE_CURRENT_SOURCE_DIR}/Torch rev-parse HEAD
+                    OUTPUT_VARIABLE _lh_torch_commit OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+    execute_process(COMMAND git -c safe.directory=* -C ${CMAKE_CURRENT_SOURCE_DIR}/Torch rev-parse --absolute-git-dir
+                    OUTPUT_VARIABLE _lh_torch_git_dir OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+    if(_lh_torch_commit STREQUAL "")
+        message(FATAL_ERROR "LH_ROM_EXTRACT: can't read Torch's commit, which the archive stamp needs")
+    endif()
+    # Reconfigure, and so restamp, when Torch moves to another commit: HEAD holds the commit when
+    # detached (as in CI), or names a branch whose ref file holds it
+    execute_process(COMMAND git -c safe.directory=* -C ${CMAKE_CURRENT_SOURCE_DIR}/Torch symbolic-ref -q HEAD
+                    OUTPUT_VARIABLE _lh_torch_ref OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+    foreach(_lh_git_file "${_lh_torch_git_dir}/HEAD" "${_lh_torch_git_dir}/${_lh_torch_ref}")
+        if(EXISTS "${_lh_git_file}" AND NOT IS_DIRECTORY "${_lh_git_file}")
+            set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${_lh_git_file}")
+        endif()
+    endforeach()
+    string(SHA1 _lh_archive_stamp "${_lh_stamp_input}${_lh_torch_commit}")
+    string(SUBSTRING ${_lh_archive_stamp} 0 16 LH_ARCHIVE_STAMP)
+    message(STATUS "bk.o2r stamp: ${LH_ARCHIVE_STAMP} (Torch ${_lh_torch_commit})")
+    target_compile_definitions(${PROJECT_NAME} PRIVATE LH_ROM_EXTRACT=1 LH_ARCHIVE_STAMP="${LH_ARCHIVE_STAMP}")
     target_link_libraries(${PROJECT_NAME} PRIVATE torch "${ADDITIONAL_LIBRARY_DEPENDENCIES}")
 elseif(LH_SLIM)
     # No in-game extraction: bk.o2r is generated on a PC. Only Torch's resource type ids are needed.

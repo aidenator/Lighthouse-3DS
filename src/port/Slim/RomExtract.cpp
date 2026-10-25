@@ -102,17 +102,22 @@ static std::vector<char> PortVersion() {
     return writer.ToVector();
 }
 
+static bool sReplacing = false;
+
 static void ShowProgress(float fraction) {
 #ifdef __3DS__
     char step[48];
-    snprintf(step, sizeof(step), "First start: making bk.o2r, %d%%", (int)(fraction * 100.0f));
+    snprintf(step, sizeof(step), sReplacing ? "Updating bk.o2r for this version, %d%%"
+                                            : "First start: making bk.o2r, %d%%",
+             (int)(fraction * 100.0f + 0.5f));
     Fast::Set3dsLoadProgress(fraction, step);
 #endif
 }
 
 RomExtractResult Slim_ExtractRomArchive(const std::string& folder, const std::string& archiveName,
-                                        const std::vector<std::string>& romFolders) {
+                                        const std::vector<std::string>& romFolders, bool replacing) {
     RomExtractResult result;
+    sReplacing = replacing;
     std::vector<fs::path> folders;
     for (const auto& romFolder : romFolders) {
         folders.emplace_back(romFolder);
@@ -196,6 +201,11 @@ RomExtractResult Slim_ExtractRomArchive(const std::string& folder, const std::st
         // Twice the size, but compressing would add almost a minute on the 3DS
         Companion::Instance->GetConfig().storeUncompressed = true;
         Companion::Instance->RegisterCompanionFile("portVersion", PortVersion());
+#ifdef LH_ARCHIVE_STAMP
+        // What made this archive (see CheckRomArchive in SlimStubs.cpp)
+        const std::string stamp = LH_ARCHIVE_STAMP;
+        Companion::Instance->RegisterCompanionFile("extractStamp", std::vector<char>(stamp.begin(), stamp.end()));
+#endif
         Companion::Instance->SetProgressCallback([&shownPercent](size_t done, size_t total) {
             const int percent = total > 0 ? (int)(done * 100 / total) : 0;
             if (percent != shownPercent) {
@@ -224,7 +234,10 @@ RomExtractResult Slim_ExtractRomArchive(const std::string& folder, const std::st
                     (error.empty() ? std::string("Torch made no archive.") : error) +
                         "\nThe log in logs/Lighthouse.log has the details.");
     }
-    fs::rename(made, fs::path(folder) / archiveName, ec);
+    // The 3DS won't rename over an existing file, so an out-of-date archive goes only now
+    const fs::path target = fs::path(folder) / archiveName;
+    fs::remove(target, ec);
+    fs::rename(made, target, ec);
     if (ec) {
         return fail("Making " + archiveName + " failed", "It was made but could not be moved to\n" + folder +
                                                              "/\n(" + ec.message() + ")");

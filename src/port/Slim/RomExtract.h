@@ -16,5 +16,6 @@ struct RomExtractResult {
 // Looks for a .z64, .v64 or .n64 ROM in romFolders, in order (baserom.* first in each), and makes
 // folder/archiveName from the first supported one. Torch's inputs (config.yml and assets/) come
 // from folder/extract.
+// replacing: an out-of-date archive is there, which is replaced once the new one is complete.
 RomExtractResult Slim_ExtractRomArchive(const std::string& folder, const std::string& archiveName,
-                                        const std::vector<std::string>& romFolders);
+                                        const std::vector<std::string>& romFolders, bool replacing);

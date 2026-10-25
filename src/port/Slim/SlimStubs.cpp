@@ -6,6 +6,7 @@
 #include <string>
 
 #include <libultraship/libultraship.h>
+#include "ship/resource/archive/O2rArchive.h"
 #include <spdlog/spdlog.h>
 
 #include "port/build.h"
@@ -302,24 +303,41 @@ void MaybeShowOutdatedArchivesPopup() {
 // How to get a new archive: the app makes one from a ROM, or (without LH_ROM_EXTRACT) a PC build does
 static std::string RemakeArchiveHint(const std::string& name) {
 #ifdef LH_ROM_EXTRACT
-    return "Delete " + name + " and put your Banjo-Kazooie ROM in\n" + Ship::Context::GetAppBundlePath() +
-           "/\nThe next start makes a new one from it.";
+    return "Put your Banjo-Kazooie ROM in\n" + Ship::Context::GetAppBundlePath() +
+           "/\n(or next to the .3dsx, or at the root of the SD card) and start again: the app makes a new " +
+           name + " from it.";
 #else
     return "Make it again from your ROM with the PC build of Lighthouse " + std::to_string(gBuildVersionMajor) +
            "." + std::to_string(gBuildVersionMinor) + ", from the same release as this app.";
 #endif
 }
 
-void Slim_CheckRomArchive(const std::shared_ptr<Ship::Archive>& archive, const std::string& name) {
-    if (archive == nullptr) {
-        FatalSetupError(name + " can't be read",
-                        "The file may be damaged or only partly copied. " + RemakeArchiveHint(name));
+enum class ArchiveState { Current, Outdated, Unreadable };
+
+struct ArchiveCheck {
+    ArchiveState state;
+    // What is wrong, for the error screen
+    std::string reason;
+};
+
+// Whether an archive fits this app. One the app made carries the stamp of the Torch and asset lists
+// that made it (LH_ARCHIVE_STAMP), so it only goes out of date when those change. Without a stamp
+// (made by a PC build), it has to come from the same Lighthouse version.
+static ArchiveCheck CheckRomArchive(const std::shared_ptr<Ship::Archive>& archive) {
+    if (archive == nullptr || !archive->IsLoaded()) {
+        return { ArchiveState::Unreadable, "The file may be damaged or only partly copied." };
     }
+#ifdef LH_ARCHIVE_STAMP
+    if (auto stamp = archive->LoadFile("extractStamp"); stamp != nullptr && stamp->IsLoaded) {
+        if (std::string(stamp->Buffer->begin(), stamp->Buffer->end()) == LH_ARCHIVE_STAMP) {
+            return { ArchiveState::Current, "" };
+        }
+        return { ArchiveState::Outdated, "It was made for an older version of this app." };
+    }
+#endif
     auto file = archive->LoadFile("portVersion");
-    const std::string wanted = std::to_string(gBuildVersionMajor) + "." + std::to_string(gBuildVersionMinor);
     if (file == nullptr || !file->IsLoaded || file->Buffer->size() < 4) {
-        FatalSetupError(name + " is from another version",
-                        "It was made by an older Lighthouse. " + RemakeArchiveHint(name));
+        return { ArchiveState::Outdated, "It was made by an older Lighthouse." };
     }
     auto stream = std::make_shared<Ship::MemoryStream>(file->Buffer->data(), file->Buffer->size());
     auto reader = std::make_shared<Ship::BinaryReader>(stream);
@@ -327,9 +345,23 @@ void Slim_CheckRomArchive(const std::shared_ptr<Ship::Archive>& archive, const s
     const uint16_t major = reader->ReadUInt16();
     const uint16_t minor = reader->ReadUInt16();
     if (major != gBuildVersionMajor || minor != gBuildVersionMinor) {
-        FatalSetupError(name + " is from another version",
-                        "It was made by Lighthouse " + std::to_string(major) + "." + std::to_string(minor) +
-                            ", but this app needs " + wanted + ". " + RemakeArchiveHint(name));
+        return { ArchiveState::Outdated, "It was made by Lighthouse " + std::to_string(major) + "." +
+                                             std::to_string(minor) + ", but this app needs " +
+                                             std::to_string(gBuildVersionMajor) + "." +
+                                             std::to_string(gBuildVersionMinor) + "." };
+    }
+    return { ArchiveState::Current, "" };
+}
+
+[[noreturn]] static void FatalArchiveError(const std::string& name, const ArchiveCheck& check) {
+    FatalSetupError(name + (check.state == ArchiveState::Unreadable ? " can't be read" : " is from another version"),
+                    check.reason + " " + RemakeArchiveHint(name));
+}
+
+void Slim_CheckRomArchive(const std::shared_ptr<Ship::Archive>& archive, const std::string& name) {
+    const ArchiveCheck check = CheckRomArchive(archive);
+    if (check.state != ArchiveState::Current) {
+        FatalArchiveError(name, check);
     }
 }
 
@@ -339,21 +371,47 @@ void GameEngine::RunExtract(int argc, char* argv[]) {
         FatalSetupError("lighthouse.o2r is missing", "Copy lighthouse.o2r from this release's download to\n" +
                                                          folder + "/");
     }
+#ifdef LH_ROM_EXTRACT
+    // The ROM can be in the app's folder, beside the .3dsx (the Homebrew Launcher passes its path), or
+    // at the SD card's root
+    std::vector<std::string> romFolders = { folder };
+    const std::string appPath = argc > 0 && argv[0] != nullptr ? argv[0] : "";
+    if (appPath.rfind("sdmc:/", 0) == 0) {
+        romFolders.push_back(std::filesystem::path(appPath).parent_path().string());
+    }
+    romFolders.push_back("sdmc:/");
+#endif
     for (const auto& archive : kRomArchives) {
         const std::string path = Ship::Context::LocateFileAcrossAppDirs(archive, "bk");
         if (std::filesystem::exists(path)) {
+#ifdef LH_ROM_EXTRACT
+            // Opened once here and handed to FinishInit (romArchive): opening bk.o2r costs seconds on
+            // the 3DS, mostly indexing its file list
+            auto opened = std::make_shared<Ship::O2rArchive>(path);
+            opened->Load();
+            const ArchiveCheck check = CheckRomArchive(opened);
+            if (check.state == ArchiveState::Current) {
+                romArchive = opened;
+                continue;
+            }
+            // Out of date or damaged: make a new one if there is a ROM. The old one stays until the
+            // new one is complete.
+            opened->Unload();
+            opened = nullptr;
+            SPDLOG_INFO("{}: {} Making a new one", archive, check.reason);
+            const RomExtractResult extract = Slim_ExtractRomArchive(folder, archive, romFolders, true);
+            if (!extract.foundRom) {
+                FatalArchiveError(archive, check);
+            }
+            if (!extract.errorTitle.empty()) {
+                FatalSetupError(extract.errorTitle, extract.errorMessage);
+            }
+#endif
             continue;
         }
 #ifdef LH_ROM_EXTRACT
-        // First start with a ROM instead: make the archive here. The ROM can be in the app's folder,
-        // beside the .3dsx (the Homebrew Launcher passes its path), or at the SD card's root.
-        std::vector<std::string> romFolders = { folder };
-        const std::string appPath = argc > 0 && argv[0] != nullptr ? argv[0] : "";
-        if (appPath.rfind("sdmc:/", 0) == 0) {
-            romFolders.push_back(std::filesystem::path(appPath).parent_path().string());
-        }
-        romFolders.push_back("sdmc:/");
-        const RomExtractResult extract = Slim_ExtractRomArchive(folder, archive, romFolders);
+        // First start with a ROM instead: make the archive here
+        const RomExtractResult extract = Slim_ExtractRomArchive(folder, archive, romFolders, false);
         if (extract.foundRom && !extract.errorTitle.empty()) {
             FatalSetupError(extract.errorTitle, extract.errorMessage);
         }
