@@ -95,6 +95,11 @@ totals and the frame rate. Make it more useful during play, for example:
   `bk.o2r` or live as a cheap top-down render.
 * A settings menu, for options such as draw distance and controls, and the 3D's convergence and
   HUD depth, which today are fixed (with a hidden SELECT + tap control for testing).
+* **The game's language.** A PAL ROM has English (UK), French and German, and Lighthouse can
+  switch between them, but on the 3DS only by editing `DialogLanguage` in `lighthouse.cfg.json`
+  (English (UK) `1583480766`, French `2092788901`, German `286263347`). It belongs in the settings
+  menu; until then, a quick way would be SELECT + L/R on the file select, with the language's name
+  on the bottom screen.
 
 Drawing the bottom screen with the GPU instead of the text console costs some renderer time, so it
 has to fit beside 60 fps.
