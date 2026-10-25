@@ -41,20 +41,19 @@ jobs:
           (cd artifacts/Lighthouse-mac && zip -qr ../../Lighthouse-PC-Mac.zip .)
           cp artifacts/Lighthouse-linux/lighthouse.appimage Lighthouse-PC-Linux.appimage
           cat > notes.md <<EOF
-          Banjo-Kazooie for the New Nintendo 3DS, as a homebrew app. No game data is included: you make
-          \`bk.o2r\` once from your own ROM (US v1.0, US v1.1, PAL or Japanese).
+          Banjo-Kazooie for the New Nintendo 3DS, as a homebrew app. No game data is included: it is made
+          once from your own ROM (US v1.0, US v1.1, PAL or Japanese).
 
           ## Install
 
-          1. **Make \`bk.o2r\`.** Download the PC build for your computer below, run it and choose your ROM.
-             Use the PC build from this release: \`bk.o2r\` from other Lighthouse versions does not work,
-             unless the notes below say an older one still does.
-             - Windows: \`bk.o2r\` appears next to \`Lighthouse.exe\`.
-             - Linux: it is written to \`~/.local/share/lighthouse/\`.
-             - macOS: see \`README-3DS.txt\` in the 3DS zip.
-          2. **Copy to the SD card.** Extract \`Lighthouse-3DS-v$VERSION.zip\` onto the root of the SD card, then put
-             your \`bk.o2r\` in \`3ds/lighthouse/\`, next to \`lighthouse.o2r\`.
-          3. **Play.** Start Banjo-Kazooie from the Homebrew Launcher. START + SELECT quits.
+          1. **Copy to the SD card.** Extract \`Lighthouse-3DS-v$VERSION.zip\` onto the root of the SD card, then put
+             your ROM (\`.z64\`, \`.v64\` or \`.n64\`) in \`3ds/lighthouse/\`.
+          2. **Play.** Start Banjo-Kazooie from the Homebrew Launcher. The first start makes \`bk.o2r\` from the
+             ROM, in about a minute and a half; after that the ROM can be deleted. START + SELECT quits.
+
+          You can also make \`bk.o2r\` with the PC build for your computer below and put it in
+          \`3ds/lighthouse/\` instead of the ROM. Use the PC build from this release: \`bk.o2r\` from other
+          Lighthouse versions does not work, unless the notes below say an older one still does.
 
           Full instructions and controls are in \`README-3DS.txt\` inside the 3DS zip and in
           [docs/3DS.md](https://github.com/${{ github.repository }}/blob/$TAG/docs/3DS.md).
@@ -64,9 +63,9 @@ jobs:
           | File | What it is |
           | --- | --- |
           | \`Lighthouse-3DS-v$VERSION.zip\` | The 3DS app, for the SD card |
-          | \`Lighthouse-PC-Win64.zip\` | PC build for Windows, to make \`bk.o2r\` |
-          | \`Lighthouse-PC-Mac.zip\` | PC build for macOS, to make \`bk.o2r\` |
-          | \`Lighthouse-PC-Linux.appimage\` | PC build for Linux, to make \`bk.o2r\` |
+          | \`Lighthouse-PC-Win64.zip\` | PC build for Windows, to make \`bk.o2r\` on a computer instead |
+          | \`Lighthouse-PC-Mac.zip\` | PC build for macOS, to make \`bk.o2r\` on a computer instead |
+          | \`Lighthouse-PC-Linux.appimage\` | PC build for Linux, to make \`bk.o2r\` on a computer instead |
 
           ## Changes
 

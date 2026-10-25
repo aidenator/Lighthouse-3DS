@@ -2,24 +2,46 @@ Banjo-Kazooie for Nintendo 3DS (Lighthouse 3DS port)
 =====================================================
 
 This is a homebrew app for the New Nintendo 3DS, New 3DS XL and New 2DS XL. It
-contains no game data: you make that yourself, once, from your own copy of the
-game. The original 3DS, 3DS XL and 2DS are untested and will be much slower.
+contains no game data: it is made once from your own copy of the game. The
+original 3DS, 3DS XL and 2DS are untested and will be much slower.
 
 You need:
   * A 3DS with custom firmware (Luma3DS) and the Homebrew Launcher.
     See https://3ds.hacks.guide/ if you do not have these yet.
-  * A Banjo-Kazooie ROM in .z64 format: US v1.0, US v1.1, PAL or Japanese.
-  * A Windows, macOS or Linux computer.
+  * A Banjo-Kazooie ROM: US v1.0, US v1.1, PAL or Japanese, as .z64, .v64 or
+    .n64.
 
 
-1. Make bk.o2r from your ROM
-----------------------------
+1. Copy to the SD card
+----------------------
 
-bk.o2r holds the game's graphics, sound and text. The 3DS cannot read a ROM, so
-the PC version of Lighthouse from this same release makes it. Use the PC build
-that came with this release: bk.o2r files made by other Lighthouse versions,
-including official HarbourMasters releases, do not work with this 3DS app.
-(A bk.o2r made for 3DS v1.0 or v1.1 works with either.)
+Extract this zip onto the root of the SD card, then put your ROM in the
+lighthouse folder (any file name). The card should look like this:
+
+    3ds/
+      Lighthouse.3dsx
+      lighthouse/
+        baserom.z64       <- your ROM
+        extract/          <- from this zip
+        lighthouse.o2r    <- from this zip
+
+To copy without taking the SD card out, run ftpd on the 3DS and use any FTP
+client.
+
+
+2. First start
+--------------
+
+Start Banjo-Kazooie from the Homebrew Launcher. The first time, the app makes
+bk.o2r (the game's graphics, sound and text) from your ROM. On a New 3DS this
+takes about a minute and a half, with a progress bar on the bottom screen.
+Later starts skip this, and you can delete the ROM.
+
+Instead, you can make bk.o2r on a computer with the PC build of Lighthouse
+from this same release, and put it in the lighthouse folder in place of the
+ROM. bk.o2r files made by other Lighthouse versions, including official
+HarbourMasters releases, do not work with this 3DS app. (A bk.o2r made for 3DS
+v1.0 or v1.1 works with either.)
 
 Windows:
   Extract Lighthouse-PC-Win64.zip, run Lighthouse.exe and choose your ROM when
@@ -40,27 +62,10 @@ macOS:
 Once the PC game reaches its title screen, bk.o2r is complete and you can quit.
 
 
-2. Copy to the SD card
-----------------------
-
-Extract this zip onto the root of the SD card, then put your bk.o2r beside
-lighthouse.o2r. The card should look like this:
-
-    3ds/
-      Lighthouse.3dsx
-      lighthouse/
-        bk.o2r            <- the one you made
-        lighthouse.o2r    <- from this zip
-
-To copy without taking the SD card out, run ftpd on the 3DS and use any FTP
-client.
-
-
 3. Play
 -------
 
-Start Banjo-Kazooie from the Homebrew Launcher. The bottom screen shows a
-loading bar, then the current level's stats, your game totals and the frame
+The bottom screen shows a loading bar, then the current level's stats, your game totals and the frame
 rate. On a New 3DS the game runs at 60 frames per second, also in 3D.
 
     3DS                     N64
@@ -78,9 +83,9 @@ rate. On a New 3DS the game runs at 60 frames per second, also in 3D.
 Saves, settings and a log file (logs/Lighthouse.log) are kept in
 sdmc:/3ds/lighthouse/. If the game does not start, the log says why.
 
-Updating: replace Lighthouse.3dsx and lighthouse.o2r with the new release's.
-Keep your saves. If the new release says bk.o2r must be remade, repeat step 1
-with that release's PC build.
+Updating: replace Lighthouse.3dsx, lighthouse.o2r and the extract folder with
+the new release's. Keep your saves. If the new release says bk.o2r must be
+remade, delete it and put your ROM back: the next start makes a new one.
 
 Project page, source code and full documentation:
 https://github.com/aidenator/Lighthouse-3DS

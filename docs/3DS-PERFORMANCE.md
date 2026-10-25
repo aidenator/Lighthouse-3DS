@@ -1,7 +1,8 @@
 # 3DS performance notes
 
 What got the 3DS port from 30 fps to 60 fps on a New 3DS, then to 60 fps in stereoscopic 3D, how
-much each change gained, and what didn't work. All numbers were measured on a New 3DS, from the frame stats the app logs every 3
+much each change gained, and what didn't work. The last section covers making `bk.o2r` on the 3DS
+itself. All numbers were measured on a New 3DS, from the frame stats the app logs every 3
 seconds (see [Measuring](#measuring)).
 
 ## How a frame is drawn
@@ -220,3 +221,88 @@ From about 15.8 s to about 2.5 s:
 
 What's left: the `bk.o2r` file list (about 0.9 s) and 630 separate sound reads (about 0.76 s).
 Cutting those would mean changing the archive format.
+
+## Making `bk.o2r` on the 3DS
+
+Since v1.2 the app can make `bk.o2r` from a ROM on its first start, with Torch, Lighthouse's asset
+extractor, built into the app. Unchanged, Torch needed far more memory than a 3DS has and would
+have run for over 15 minutes. All the archives below are identical, file for file, to the ones the
+PC makes, for all four ROM versions.
+
+### Memory
+
+A `.3dsx` gets about 89 MB of heap on a New 3DS. Torch peaked at about 740 MB on a PC, because it
+kept everything until the end:
+
+| Change | Peak (PC) |
+|---|---|
+| Unchanged Torch | 741 MB |
+| Write each asset to the archive as soon as it is parsed, then free it, instead of parsing all ~3,500 first | 166 MB |
+| Free each asset's decompressed data once it is written, skip the up-front decompression of every asset, and drop the ROM copy the cartridge header reader kept | 121 MB |
+| Don't keep a copy of every exported file for the C-code export, which a binary export never reads | 76 MB |
+| Copy only the asset table (28 KB) to read it, not the rest of the ROM | 60 MB |
+
+The peak on the 3DS is 48 MB, including the 16 MB ROM. Writing the zip straight to the file instead
+of building it in memory hardly changed the peak, but it mattered for speed (below).
+
+### Time
+
+| Run, on a New 3DS (Torch in a test app) | Time |
+|---|---|
+| First working run: the archive written through the C library's 1 KB buffer | 963 s |
+| Writes gathered into a 1 MB memory window | 576 s |
+| Writes in whole 1 MiB blocks at 1 MiB-aligned offsets | 198 s |
+| The same, with the writes thrown away | 193 s |
+| Uncompressed, writes thrown away | 141 s |
+| **In the game: uncompressed, with logging turned down** | **about 80 s** |
+
+Reading the 16 MB ROM through a C++ stream iterator, one byte at a time, took 30.5 s. One `fread`
+into a buffer of the right size takes 1.5 s.
+
+### SD card writes
+
+The slow part was the SD card, and only for one kind of write:
+
+| Writing 26 MB on a New 3DS | Speed |
+|---|---|
+| 1 MiB blocks into a file that grows | 2.9–3.9 MB/s |
+| 1 MiB blocks into a file whose size is set first | 5.6–6.4 MB/s |
+| 1,032,486-byte blocks, each after a seek, as the zip writer made them | 0.10 MB/s |
+
+Two things made the archive writes slow:
+
+* **Tiny writes.** miniz writes each file's data, then seeks back to fill in its header. newlib
+  flushes its buffer on every seek, so a bigger stdio buffer does nothing: the 26 MB archive still
+  went out as tens of thousands of writes of 30 bytes to 30 KB, and each is a request to the file
+  system service.
+* **Unaligned writes.** Even in 1 MB pieces, writes that don't start and end on a block boundary
+  are about 50 times slower.
+
+Torch's zip writer now keeps the archive in memory from the last written block on, and writes only
+whole aligned 1 MiB blocks, once nothing in them can change. The only unaligned write is the end of
+the file. The archive's writes now take about 4 s in all.
+
+### What's left
+
+* **Torch's own parsing takes about 140 s of CPU time in the test app.** It's spread across
+  Torch's whole design: assets pass through YAML nodes, which allocate and adjust reference counts
+  at every step, and allocation is far slower on the 3DS than on a PC. A PC does the same work in
+  about 1.7 s, more than the CPU speed alone would explain. Getting under a minute would mean
+  rewriting the Banjo-Kazooie path in Torch without YAML.
+* **Compression costs about 50 s**, so the 3DS stores files uncompressed: 47 MB instead of 26 MB.
+  The game reads either kind. Compressing on another core during the parse would keep the smaller
+  file at little cost, but adds code.
+* Each time spdlog's pattern changes, it rebuilds its formatter. Torch did that twice per asset,
+  even with those log lines turned off. It now only does that when they are on.
+
+### Measuring
+
+`tools/3ds/extract-test` is a small app that runs only the extraction, from
+`sdmc:/3ds/lighthouse/extract-test/` (`rom.z64`, `config.yml`, `torch.hash.yml` and `assets/`). It
+reports the time, the peak heap, and every SD card call with its count and time, and can throw
+the archive's writes away to time the CPU work alone. Its **Y** option measures the SD card's
+write speeds in under a minute.
+
+Luma's Rosalina menu has a GDB server (Debugger options → Enable debugger). Attaching
+`arm-none-eabi-gdb` to `192.168.1.x:4000` every few seconds, and recording each thread's stack,
+works as a rough profiler. Backtraces stop at libctru's wait calls; `x/64a $sp` shows the callers.

@@ -252,6 +252,9 @@ jobs:
           mkdir -p lighthouse-3ds/3ds/lighthouse
           cp build-3ds/Lighthouse.3dsx lighthouse-3ds/3ds/
           cp lighthouse.o2r lighthouse-3ds/3ds/lighthouse/
+          # What the app needs to make bk.o2r from a ROM on first start
+          mkdir -p lighthouse-3ds/3ds/lighthouse/extract
+          cp -r config.yml assets lighthouse-3ds/3ds/lighthouse/extract/
           cp tools/3ds/README.txt lighthouse-3ds/README-3DS.txt
       - name: Upload build
         uses: actions/upload-artifact@v7

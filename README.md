@@ -21,25 +21,28 @@ comes with each release.
 ## Download and install
 
 Get the latest version from [Releases](https://github.com/aidenator/Lighthouse-3DS/releases). You
-need a 3DS with custom firmware ([Luma3DS](https://3ds.hacks.guide/)) and the Homebrew Launcher, a
-Banjo-Kazooie ROM in `.z64` format, and a Windows, macOS or Linux computer.
+need a 3DS with custom firmware ([Luma3DS](https://3ds.hacks.guide/)) and the Homebrew Launcher, and
+a Banjo-Kazooie ROM.
 
-1. **Make `bk.o2r` from your ROM.** Download the PC build for your computer from the same release,
-   run it and choose your ROM. It writes `bk.o2r`, the game's graphics, sound and text.
-   Use the PC build from the same release: `bk.o2r` made by any other Lighthouse version will not
-   work.
-2. **Copy everything to the SD card.** Extract `Lighthouse-3DS-v<version>.zip` onto the root of the
-   SD card and put your `bk.o2r` next to `lighthouse.o2r`:
+1. **Copy everything to the SD card.** Extract `Lighthouse-3DS-v<version>.zip` onto the root of the
+   SD card and put your ROM (`.z64`, `.v64` or `.n64`) in `3ds/lighthouse/`:
    ```
    3ds/
    ├── Lighthouse.3dsx
    └── lighthouse/
-       ├── bk.o2r          <- the one you made
+       ├── baserom.z64     <- your ROM, any name
+       ├── extract/
        └── lighthouse.o2r
    ```
-3. **Play.** Start **Banjo-Kazooie** from the Homebrew Launcher. START + SELECT quits.
+2. **Play.** Start **Banjo-Kazooie** from the Homebrew Launcher. On the first start the app makes
+   `bk.o2r`, the game's graphics, sound and text, from your ROM: about a minute and a half, with a
+   progress bar on the bottom screen. After that the ROM is no longer needed. START + SELECT quits.
 
-`README-3DS.txt` in the zip has the full steps for each computer. Your ROM must be one of these
+You can also make `bk.o2r` on a computer instead, with the PC build from the same release, and put it
+in `3ds/lighthouse/` in place of the ROM. A `bk.o2r` made by any other Lighthouse version will not
+work.
+
+`README-3DS.txt` in the zip has the full steps, including for each computer. Your ROM must be one of these
 (check with any SHA-1 tool):
 
 | Version | SHA-1 |

@@ -3,6 +3,17 @@
 What's planned for the 3DS port after v1.0. Plans change; this is a list of intentions, not
 promises.
 
+## Next release (v1.2)
+
+### Done so far
+
+* **`bk.o2r` made on the 3DS.** Put the ROM in `sdmc:/3ds/lighthouse/` and the app makes `bk.o2r`
+  on the first start, in about 80 seconds on a New 3DS, with a progress bar; a PC is no longer
+  needed. This builds Torch, Lighthouse's asset extractor, into the app. Torch used to hold the
+  whole archive in memory (about 730 MB); it now writes each asset as it goes and peaks under
+  50 MB, with the same output. Writes go to the SD card in whole aligned 1 MB blocks: unaligned
+  writes ran at 0.1 MB/s.
+
 ## Next release (v1.1)
 
 ### Done so far
@@ -58,16 +69,6 @@ also runs.
 To test without an Old 3DS, configure with `-DLH_3DS_SIMULATE_OLD=ON` (and
 `-DLH_3DS_OLD_INTERPOLATION=ON` to also draw in-between frames). The log's `game:` line shows the
 game's own update rate.
-
-### Make `bk.o2r` on the 3DS
-
-Today players make `bk.o2r` on a PC first. Instead, put the ROM in `sdmc:/3ds/lighthouse/` and
-have the 3DS build `bk.o2r` itself on the first start, with a progress screen.
-
-* This means building Lighthouse's asset extractor (Torch) into the 3DS app.
-* Memory is the main risk: the extractor would have to work through the ROM a piece at a time to
-  fit, especially on an Old 3DS.
-* Extraction will take a while on a 3DS CPU, but only once.
 
 ### A CIA build
 

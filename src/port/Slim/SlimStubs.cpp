@@ -19,6 +19,7 @@
 #include "port/UI/LighthouseGui.hpp"
 #include "port/UI/LighthouseModMenuWindow.h"
 #include "port/UI/Notification.h"
+#include "port/Slim/RomExtract.h"
 
 #ifdef __3DS__
 #include <fast/backends/gfx_3ds.h>
@@ -277,7 +278,7 @@ void port_eggToll_clearForLevel(int32_t levelId) {
 void port_puzzleStep_clearForLevel(int32_t levelId) {
 }
 
-// Extraction: bk.o2r must already exist, generated on a PC
+// Extraction: bk.o2r is made on a PC, or (LH_ROM_EXTRACT) here from a ROM on first start
 
 // Checked on the archive FinishInit opens: opening bk.o2r costs seconds on the 3DS, mostly
 // indexing its file list, so it must not be opened just for this
@@ -325,10 +326,26 @@ void GameEngine::RunExtract(int argc, char* argv[]) {
     }
     for (const auto& archive : kRomArchives) {
         const std::string path = Ship::Context::LocateFileAcrossAppDirs(archive, "bk");
-        if (!std::filesystem::exists(path)) {
-            FatalSetupError(archive + " is missing",
-                            "Make it from your Banjo-Kazooie ROM with the PC build of Lighthouse from this "
-                            "release, then copy it to\n" + folder + "/");
+        if (std::filesystem::exists(path)) {
+            continue;
         }
+#ifdef LH_ROM_EXTRACT
+        // First start with a ROM instead: make the archive here, once
+        const RomExtractResult extract = Slim_ExtractRomArchive(folder, archive);
+        if (extract.foundRom && !extract.errorTitle.empty()) {
+            FatalSetupError(extract.errorTitle, extract.errorMessage);
+        }
+        if (extract.foundRom) {
+            continue;
+        }
+        FatalSetupError(archive + " is missing",
+                        "Put your Banjo-Kazooie ROM (.z64) in\n" + folder + "/\nand it is made from it on the "
+                        "next start, in about 3 minutes. Or make it on a PC with the PC build of Lighthouse "
+                        "from this release.");
+#else
+        FatalSetupError(archive + " is missing",
+                        "Make it from your Banjo-Kazooie ROM with the PC build of Lighthouse from this "
+                        "release, then copy it to\n" + folder + "/");
+#endif
     }
 }

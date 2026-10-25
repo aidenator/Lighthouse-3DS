@@ -4,4 +4,5 @@
 	branch = 3ds
 [submodule "Torch"]
 	path = Torch
-	url = https://github.com/HarbourMasters/Torch.git
+	url = https://github.com/aidenator/Torch.git
+	branch = 3ds-extract

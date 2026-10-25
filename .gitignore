@@ -34,6 +34,7 @@ tools/bk_crc/bk_crc
 build/
 build-cmake
 /build-arm64
+/build-extract-test
 x64
 
 # Compiler output

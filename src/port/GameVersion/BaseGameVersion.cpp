@@ -9,6 +9,7 @@
 #include "ship/resource/archive/ArchiveManager.h"
 #include "ship/resource/archive/Archive.h"
 #include <spdlog/spdlog.h>
+#include "port/Extractor/ExtractFlow.h"
 
 namespace Lighthouse {
 
@@ -82,7 +83,7 @@ bool ReadStampedCrc(const std::string& archivePath, uint32_t& outCrc) {
 } // namespace
 
 std::string BaseArchivePath() {
-    std::string basePath = Ship::Context::LocateFileAcrossAppDirs("bk.o2r", "bk");
+    std::string basePath = Ship::Context::LocateFileAcrossAppDirs(kRomArchives.front(), "bk");
     if (basePath.empty() || !std::filesystem::exists(basePath)) {
         return std::string(); // not extracted yet
     }

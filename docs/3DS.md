@@ -4,29 +4,31 @@ Lighthouse runs on the New Nintendo 3DS, New 3DS XL and New 2DS XL as a homebrew
 3DS, 3DS XL and 2DS start and play in an emulator set to that model, but have not been tried on
 real hardware, where they will be much slower.
 
-The app contains no game data. You make the game's asset archive, `bk.o2r`, once from your own ROM
-(US v1.0, US v1.1, PAL or Japanese). The game plays in the language of that ROM; the 3DS build has
+The app contains no game data. The game's asset archive, `bk.o2r`, is made once from your own ROM
+(US v1.0, US v1.1, PAL or Japanese), by the app itself on its first start or by the PC build. The game plays in the language of that ROM; the 3DS build has
 no menu for choosing a language pack.
 
 ## Installing a release
 
 You need a 3DS with custom firmware ([Luma3DS](https://3ds.hacks.guide/)) and the Homebrew Launcher,
-a Banjo-Kazooie ROM in `.z64` format (see [Quick Start](../README.md#quick-start)), and a Windows,
-macOS or Linux computer.
+and a Banjo-Kazooie ROM (see [Quick Start](../README.md#quick-start) for the supported ones).
 
 1. From the [releases page](https://github.com/aidenator/Lighthouse-3DS/releases), download
-   `Lighthouse-3DS-v<version>.zip` and the PC build for your computer.
-2. Run the PC build and choose your ROM. It writes `bk.o2r`: next to `Lighthouse.exe` on Windows,
-   or in `~/.local/share/lighthouse/` on Linux. On macOS, follow `README-3DS.txt` in the 3DS zip.
-   Once the title screen appears you can quit.
+   `Lighthouse-3DS-v<version>.zip`.
+2. Extract it onto the root of the SD card, and put your ROM (`.z64`, `.v64` or `.n64`, any name)
+   in `3ds/lighthouse/`, next to `lighthouse.o2r` and the `extract` folder.
+3. Start **Banjo-Kazooie** from the Homebrew Launcher. On the first start the app makes `bk.o2r`
+   from the ROM, in about a minute and a half on a New 3DS, with a progress bar on the bottom
+   screen. Later starts use that `bk.o2r`, and the ROM can be deleted.
 
-   Use the PC build from the same release as the 3DS app. `bk.o2r` files made by any other
-   Lighthouse version, including official HarbourMasters releases, do not work with the 3DS app.
-   A `bk.o2r` made for 3DS v1.0 or v1.1 works with either; each release's notes say when it has to
-   be made again.
-3. Extract the 3DS zip onto the root of the SD card, and put `bk.o2r` in `3ds/lighthouse/` next to
-   `lighthouse.o2r`. See [step 3 below](#3-copy-to-the-sd-card) for the layout.
-4. Start **Banjo-Kazooie** from the Homebrew Launcher.
+Or make `bk.o2r` on a computer: run the PC build from the same release and choose your ROM. It
+writes `bk.o2r` next to `Lighthouse.exe` on Windows, or in `~/.local/share/lighthouse/` on Linux; on
+macOS, follow `README-3DS.txt` in the 3DS zip. Put it in `3ds/lighthouse/` instead of the ROM.
+
+`bk.o2r` files made by any other Lighthouse version, including official HarbourMasters releases, do
+not work with the 3DS app. A `bk.o2r` made for 3DS v1.0 or v1.1 works with either; each release's
+notes say when it has to be made again. The one the 3DS makes is stored uncompressed, so it is about
+47 MB instead of 26 MB: compressing would add almost a minute on the 3DS's CPU.
 
 ## Building from source
 
@@ -49,9 +51,11 @@ The 3DS app reads two archives:
 * `lighthouse.o2r`, the port's own assets, built from this repository
 * `bk.o2r`, the game's assets, extracted from your ROM
 
-The 3DS app cannot read a ROM itself, so a PC build of the same branch makes `bk.o2r`. Use the PC
-build from this branch, not an official Lighthouse release: the asset formats change between
-versions, and the 3DS app only accepts archives from its own version.
+A PC build of the same branch makes `bk.o2r` (or skip this and let the 3DS app make it from a ROM
+on its first start; it then needs `config.yml` and `assets/` from this repository in
+`3ds/lighthouse/extract/`). Use the PC build from this branch, not an official Lighthouse release:
+the asset formats change between versions, and the 3DS app only accepts archives from its own
+version.
 
 ```bash
 git clone --recursive https://github.com/aidenator/Lighthouse-3DS.git
