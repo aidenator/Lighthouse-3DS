@@ -4,6 +4,11 @@ name: GenerateBuilds
 on:
   workflow_dispatch:
   workflow_call:
+    inputs:
+      skip-pc-builds:
+        description: Build only lighthouse.o2r and the 3DS app (3DS releases don't ship PC builds)
+        type: boolean
+        default: false
     outputs:
       build-name:
         description: CMake's name for this version
@@ -60,6 +65,7 @@ jobs:
 
   build-windows:
     needs: generate-port-o2r
+    if: ${{ !inputs.skip-pc-builds }}
     runs-on: windows-2022
     steps:
       - uses: actions/checkout@v7
@@ -93,6 +99,7 @@ jobs:
 
   build-macos:
     needs: generate-port-o2r
+    if: ${{ !inputs.skip-pc-builds }}
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v7
@@ -128,6 +135,7 @@ jobs:
 
   build-linux:
     needs: generate-port-o2r
+    if: ${{ !inputs.skip-pc-builds }}
     runs-on: ubuntu-latest
     outputs:
       build-name: ${{ steps.build-name.outputs.name }}

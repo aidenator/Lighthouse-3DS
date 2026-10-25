@@ -7,6 +7,7 @@
 #include <chrono>
 #include <cstdio>
 #include <filesystem>
+#include <string>
 #include <vector>
 
 #include <spdlog/spdlog.h>
@@ -31,15 +32,27 @@ static std::string LowerExtension(const fs::path& path) {
     return ext;
 }
 
-static fs::path FindRom(const fs::path& folder) {
-    std::error_code ec;
-    for (const auto& entry : fs::directory_iterator(folder, ec)) {
-        const std::string ext = LowerExtension(entry.path());
-        if (entry.is_regular_file(ec) && (ext == ".z64" || ext == ".v64" || ext == ".n64")) {
-            return entry.path();
+// Every Banjo-Kazooie ROM this app supports is 16 MB, which rules out most other games cheaply
+static constexpr uintmax_t kRomSize = 16 * 1024 * 1024;
+
+// ROM files in each folder in turn: a file named baserom first, then the rest in directory order
+static std::vector<fs::path> FindRoms(const std::vector<fs::path>& folders) {
+    std::vector<fs::path> roms;
+    for (const auto& folder : folders) {
+        std::vector<fs::path> here;
+        std::error_code ec;
+        for (const auto& entry : fs::directory_iterator(folder, ec)) {
+            const std::string ext = LowerExtension(entry.path());
+            if (entry.is_regular_file(ec) && (ext == ".z64" || ext == ".v64" || ext == ".n64") &&
+                std::find(roms.begin(), roms.end(), entry.path()) == roms.end()) {
+                here.push_back(entry.path());
+            }
         }
+        std::stable_partition(here.begin(), here.end(),
+                              [](const fs::path& rom) { return rom.stem().string() == "baserom"; });
+        roms.insert(roms.end(), here.begin(), here.end());
     }
-    return {};
+    return roms;
 }
 
 // One read into a buffer of the right size: much faster on the 3DS than reading through a stream
@@ -97,14 +110,18 @@ static void ShowProgress(float fraction) {
 #endif
 }
 
-RomExtractResult Slim_ExtractRomArchive(const std::string& folder, const std::string& archiveName) {
+RomExtractResult Slim_ExtractRomArchive(const std::string& folder, const std::string& archiveName,
+                                        const std::vector<std::string>& romFolders) {
     RomExtractResult result;
-    const fs::path romPath = FindRom(folder);
-    if (romPath.empty()) {
+    std::vector<fs::path> folders;
+    for (const auto& romFolder : romFolders) {
+        folders.emplace_back(romFolder);
+    }
+    const std::vector<fs::path> roms = FindRoms(folders);
+    if (roms.empty()) {
         return result;
     }
     result.foundRom = true;
-    const std::string romName = romPath.filename().string();
     auto fail = [&](const std::string& title, const std::string& message) {
         result.errorTitle = title;
         result.errorMessage = message;
@@ -115,31 +132,44 @@ RomExtractResult Slim_ExtractRomArchive(const std::string& folder, const std::st
     std::error_code ec;
     if (!fs::exists(extractDir / "config.yml", ec)) {
         return fail("The extract folder is missing",
-                    "Making " + archiveName + " from " + romName + " needs the extract folder from this "
-                    "release's download. Copy it to\n" + folder + "/");
+                    "Making " + archiveName + " from " + roms.front().filename().string() + " needs the "
+                    "extract folder from this release's download. Copy it to\n" + folder + "/");
     }
-
-    SPDLOG_INFO("Making {} from {}", archiveName, romName);
-    ShowProgress(0.0f);
-    std::vector<uint8_t> rom = ReadFile(romPath);
-    if (rom.empty()) {
-        return fail(romName + " can't be read", "The file may be damaged. Copy it to the SD card again.");
-    }
-    ToBigEndian(rom);
-
-    const std::string hash = Companion::CalculateHash(rom);
+    YAML::Node config;
     try {
-        YAML::Node config = YAML::LoadFile((extractDir / "config.yml").string());
-        if (!config[hash]) {
-            return fail(romName + " isn't a supported ROM",
-                        "This app works with the US 1.0, US 1.1, PAL and Japanese Banjo-Kazooie ROMs, not "
-                        "romhacks or other dumps. Remove " + romName + " and use one of those, or make " +
-                        archiveName + " on a PC.");
-        }
+        config = YAML::LoadFile((extractDir / "config.yml").string());
     } catch (const std::exception& e) {
         return fail("config.yml can't be read", std::string(e.what()) + "\nCopy the extract folder from this "
                     "release's download again.");
     }
+
+    // The first ROM that is one of the supported dumps; the folders may hold other games too
+    ShowProgress(0.0f);
+    std::vector<uint8_t> rom;
+    fs::path romPath;
+    for (const auto& candidate : roms) {
+        if (fs::file_size(candidate, ec) != kRomSize) {
+            SPDLOG_INFO("Not using {}: not the size of a Banjo-Kazooie ROM", candidate.string());
+            continue;
+        }
+        rom = ReadFile(candidate);
+        ToBigEndian(rom);
+        if (!rom.empty() && config[Companion::CalculateHash(rom)]) {
+            romPath = candidate;
+            break;
+        }
+        SPDLOG_INFO("Not using {}: not a supported ROM", candidate.string());
+        // Free it, not just empty it: Torch needs the memory
+        std::vector<uint8_t>().swap(rom);
+    }
+    if (romPath.empty()) {
+        const std::string first = roms.front().filename().string();
+        return fail(roms.size() == 1 ? first + " isn't a supported ROM" : "No supported ROM found",
+                    "This app works with the US 1.0, US 1.1, PAL and Japanese Banjo-Kazooie ROMs. Other "
+                    "dumps and romhacks aren't supported yet. Put one of those four in\n" + folder + "/");
+    }
+    const std::string romName = romPath.filename().string();
+    SPDLOG_INFO("Making {} from {}", archiveName, romPath.string());
 
     // Torch skips asset lists that its hash file says are already done, and a leftover archive
     // would only be a partial one
@@ -174,6 +204,11 @@ RomExtractResult Slim_ExtractRomArchive(const std::string& folder, const std::st
             }
         });
         Companion::Instance->Init(ExportType::Binary, assetCount, true);
+        // Torch skips an asset it can't parse and carries on, which would leave a gap in the archive
+        if (const size_t failures = Companion::Instance->GetFailures(); failures > 0) {
+            ok = false;
+            error = std::to_string(failures) + (failures == 1 ? " asset" : " assets") + " could not be made.";
+        }
     } catch (const std::exception& e) {
         ok = false;
         error = e.what();

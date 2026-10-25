@@ -15,8 +15,7 @@ game, to the 3DS's own graphics hardware.
 * All four versions of the game: US v1.0, US v1.1, PAL and Japanese
 * Controls laid out for the 3DS, with the C buttons on both the C-stick and the D-pad
 
-No game data is included. You make it once from your own copy of the game, with the PC build that
-comes with each release.
+No game data is included. The app makes it once from your own copy of the game, on its first start.
 
 ## Download and install
 
@@ -25,7 +24,8 @@ need a 3DS with custom firmware ([Luma3DS](https://3ds.hacks.guide/)) and the Ho
 a Banjo-Kazooie ROM.
 
 1. **Copy everything to the SD card.** Extract `Lighthouse-3DS-v<version>.zip` onto the root of the
-   SD card and put your ROM (`.z64`, `.v64` or `.n64`) in `3ds/lighthouse/`:
+   SD card and put your ROM (`.z64`, `.v64` or `.n64`) in `3ds/lighthouse/`, next to
+   `Lighthouse.3dsx` or at the root of the card:
    ```
    3ds/
    ├── Lighthouse.3dsx
@@ -36,13 +36,13 @@ a Banjo-Kazooie ROM.
    ```
 2. **Play.** Start **Banjo-Kazooie** from the Homebrew Launcher. On the first start the app makes
    `bk.o2r`, the game's graphics, sound and text, from your ROM: about a minute and a half, with a
-   progress bar on the bottom screen. After that the ROM is no longer needed. START + SELECT quits.
+   progress bar on the bottom screen. Later starts use that `bk.o2r`, so the game no longer needs the
+   ROM. START + SELECT quits.
 
-You can also make `bk.o2r` on a computer instead, with the PC build from the same release, and put it
-in `3ds/lighthouse/` in place of the ROM. A `bk.o2r` made by any other Lighthouse version will not
-work.
+A `bk.o2r` made by a PC build of Lighthouse from this repository (see [docs/3DS.md](docs/3DS.md))
+works too. One made by any other Lighthouse version will not.
 
-`README-3DS.txt` in the zip has the full steps, including for each computer. Your ROM must be one of these
+`README-3DS.txt` in the zip has the full steps. Your ROM must be one of these
 (check with any SHA-1 tool):
 
 | Version | SHA-1 |

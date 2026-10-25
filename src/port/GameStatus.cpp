@@ -286,6 +286,10 @@ void RegisterGameStatus_Init() {
     COND_HOOK(OnMapLoad, EVENT_PRIORITY_LOW, true, [](IEvent* event) {
         OnMapLoad* ev = (OnMapLoad*)event;
         sPendingTitleMap = ev->nextMap;
+#ifdef __3DS__
+        // The file select looks best in 3D with the scene nearer the screen's depth
+        Fast::Set3dsSceneConvergence(ev->nextMap == MAP_91_FILE_SELECT ? 200.0f : 0.0f);
+#endif
         port_runOnRenderThread([](void*) { port_setWindowTitle(sPendingTitleMap); }, nullptr);
     });
 }

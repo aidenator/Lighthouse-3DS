@@ -292,18 +292,27 @@ void port_puzzleStep_clearForLevel(int32_t levelId) {
 #endif
 }
 
+// How to get a new archive: the app makes one from a ROM, or (without LH_ROM_EXTRACT) a PC build does
+static std::string RemakeArchiveHint(const std::string& name) {
+#ifdef LH_ROM_EXTRACT
+    return "Delete " + name + " and put your Banjo-Kazooie ROM in\n" + Ship::Context::GetAppBundlePath() +
+           "/\nThe next start makes a new one from it.";
+#else
+    return "Make it again from your ROM with the PC build of Lighthouse " + std::to_string(gBuildVersionMajor) +
+           "." + std::to_string(gBuildVersionMinor) + ", from the same release as this app.";
+#endif
+}
+
 void Slim_CheckRomArchive(const std::shared_ptr<Ship::Archive>& archive, const std::string& name) {
     if (archive == nullptr) {
         FatalSetupError(name + " can't be read",
-                        "The file may be damaged or only partly copied. Copy it to the SD card again, or make it "
-                        "again from your ROM with the PC build of Lighthouse.");
+                        "The file may be damaged or only partly copied. " + RemakeArchiveHint(name));
     }
     auto file = archive->LoadFile("portVersion");
     const std::string wanted = std::to_string(gBuildVersionMajor) + "." + std::to_string(gBuildVersionMinor);
     if (file == nullptr || !file->IsLoaded || file->Buffer->size() < 4) {
         FatalSetupError(name + " is from another version",
-                        "It was made by an older Lighthouse. Make it again from your ROM with the PC build of "
-                        "Lighthouse " + wanted + ", from the same release as this app.");
+                        "It was made by an older Lighthouse. " + RemakeArchiveHint(name));
     }
     auto stream = std::make_shared<Ship::MemoryStream>(file->Buffer->data(), file->Buffer->size());
     auto reader = std::make_shared<Ship::BinaryReader>(stream);
@@ -313,8 +322,7 @@ void Slim_CheckRomArchive(const std::shared_ptr<Ship::Archive>& archive, const s
     if (major != gBuildVersionMajor || minor != gBuildVersionMinor) {
         FatalSetupError(name + " is from another version",
                         "It was made by Lighthouse " + std::to_string(major) + "." + std::to_string(minor) +
-                            ", but this app needs " + wanted + ". Make it again from your ROM with the PC build "
-                            "of Lighthouse " + wanted + ", from the same release as this app.");
+                            ", but this app needs " + wanted + ". " + RemakeArchiveHint(name));
     }
 }
 
@@ -330,8 +338,15 @@ void GameEngine::RunExtract(int argc, char* argv[]) {
             continue;
         }
 #ifdef LH_ROM_EXTRACT
-        // First start with a ROM instead: make the archive here, once
-        const RomExtractResult extract = Slim_ExtractRomArchive(folder, archive);
+        // First start with a ROM instead: make the archive here. The ROM can be in the app's folder,
+        // beside the .3dsx (the Homebrew Launcher passes its path), or at the SD card's root.
+        std::vector<std::string> romFolders = { folder };
+        const std::string appPath = argc > 0 && argv[0] != nullptr ? argv[0] : "";
+        if (appPath.rfind("sdmc:/", 0) == 0) {
+            romFolders.push_back(std::filesystem::path(appPath).parent_path().string());
+        }
+        romFolders.push_back("sdmc:/");
+        const RomExtractResult extract = Slim_ExtractRomArchive(folder, archive, romFolders);
         if (extract.foundRom && !extract.errorTitle.empty()) {
             FatalSetupError(extract.errorTitle, extract.errorMessage);
         }
@@ -339,9 +354,9 @@ void GameEngine::RunExtract(int argc, char* argv[]) {
             continue;
         }
         FatalSetupError(archive + " is missing",
-                        "Put your Banjo-Kazooie ROM (.z64) in\n" + folder + "/\nand it is made from it on the "
-                        "next start, in about 3 minutes. Or make it on a PC with the PC build of Lighthouse "
-                        "from this release.");
+                        "Put your Banjo-Kazooie ROM (.z64, .v64 or .n64) in\n" + folder + "/\nand start again: "
+                        "the app makes " + archive + " from it, in about a minute and a half. The ROM can also "
+                        "be next to the .3dsx or at the root of the SD card.");
 #else
         FatalSetupError(archive + " is missing",
                         "Make it from your Banjo-Kazooie ROM with the PC build of Lighthouse from this "

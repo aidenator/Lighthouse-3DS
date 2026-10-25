@@ -5,7 +5,7 @@ Lighthouse runs on the New Nintendo 3DS, New 3DS XL and New 2DS XL as a homebrew
 real hardware, where they will be much slower.
 
 The app contains no game data. The game's asset archive, `bk.o2r`, is made once from your own ROM
-(US v1.0, US v1.1, PAL or Japanese), by the app itself on its first start or by the PC build. The game plays in the language of that ROM; the 3DS build has
+(US v1.0, US v1.1, PAL or Japanese), by the app itself on its first start. The game plays in the language of that ROM; the 3DS build has
 no menu for choosing a language pack.
 
 ## Installing a release
@@ -16,14 +16,15 @@ and a Banjo-Kazooie ROM (see [Quick Start](../README.md#quick-start) for the sup
 1. From the [releases page](https://github.com/aidenator/Lighthouse-3DS/releases), download
    `Lighthouse-3DS-v<version>.zip`.
 2. Extract it onto the root of the SD card, and put your ROM (`.z64`, `.v64` or `.n64`, any name)
-   in `3ds/lighthouse/`, next to `lighthouse.o2r` and the `extract` folder.
+   in `3ds/lighthouse/`, next to `lighthouse.o2r` and the `extract` folder. The app also looks next
+   to `Lighthouse.3dsx` and at the root of the SD card, in that order, and takes the first supported
+   ROM it finds (a file named `baserom` first in each folder); other games there are skipped.
 3. Start **Banjo-Kazooie** from the Homebrew Launcher. On the first start the app makes `bk.o2r`
    from the ROM, in about a minute and a half on a New 3DS, with a progress bar on the bottom
-   screen. Later starts use that `bk.o2r`, and the ROM can be deleted.
+   screen. Later starts use that `bk.o2r`, so the game no longer needs the ROM.
 
-Or make `bk.o2r` on a computer: run the PC build from the same release and choose your ROM. It
-writes `bk.o2r` next to `Lighthouse.exe` on Windows, or in `~/.local/share/lighthouse/` on Linux; on
-macOS, follow `README-3DS.txt` in the 3DS zip. Put it in `3ds/lighthouse/` instead of the ROM.
+Releases no longer include PC builds. A `bk.o2r` made by a PC build of this branch, built from
+source as below, still works: put it in `3ds/lighthouse/` instead of the ROM.
 
 `bk.o2r` files made by any other Lighthouse version, including official HarbourMasters releases, do
 not work with the 3DS app. A `bk.o2r` made for 3DS v1.0 or v1.1 works with either; each release's
@@ -163,8 +164,9 @@ half the HUD's depth (left out, right in). The values show on the bottom screen 
 ### Making a release
 
 Pushing a tag named `3ds-v` plus the version in `LH_3DS_VERSION` (`CMakeLists.txt`), such as
-`3ds-v1.0`, runs `.github/workflows/release-3ds.yml`. It builds the 3DS app and the PC builds from
-that commit and creates a draft GitHub release with install notes. Its "Changes" section comes
+`3ds-v1.0`, runs `.github/workflows/release-3ds.yml`. It builds `lighthouse.o2r` and the 3DS app
+from that commit (not the PC builds, which GenerateBuilds still makes when run by hand from the
+Actions tab) and creates a draft GitHub release with install notes. Its "Changes" section comes
 from `docs/release-notes/<tag>.md`, such as `docs/release-notes/3ds-v1.1.md`, if that file exists;
 write it before tagging, including whether `bk.o2r` has to be made again. The release stays a
 draft until it is published by hand. The tag must match `LH_3DS_VERSION`, or the release job fails.

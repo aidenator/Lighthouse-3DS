@@ -16,7 +16,8 @@ You need:
 ----------------------
 
 Extract this zip onto the root of the SD card, then put your ROM in the
-lighthouse folder (any file name). The card should look like this:
+lighthouse folder (any file name; it can also go next to Lighthouse.3dsx or at
+the root of the SD card). The card should look like this:
 
     3ds/
       Lighthouse.3dsx
@@ -35,31 +36,12 @@ client.
 Start Banjo-Kazooie from the Homebrew Launcher. The first time, the app makes
 bk.o2r (the game's graphics, sound and text) from your ROM. On a New 3DS this
 takes about a minute and a half, with a progress bar on the bottom screen.
-Later starts skip this, and you can delete the ROM.
+Later starts use that bk.o2r, so the game no longer needs the ROM.
 
-Instead, you can make bk.o2r on a computer with the PC build of Lighthouse
-from this same release, and put it in the lighthouse folder in place of the
-ROM. bk.o2r files made by other Lighthouse versions, including official
-HarbourMasters releases, do not work with this 3DS app. (A bk.o2r made for 3DS
-v1.0 or v1.1 works with either.)
-
-Windows:
-  Extract Lighthouse-PC-Win64.zip, run Lighthouse.exe and choose your ROM when
-  it asks. bk.o2r appears in the same folder as Lighthouse.exe.
-
-Linux:
-  Run Lighthouse-PC-Linux.appimage (you may need to chmod +x it first) and
-  choose your ROM. bk.o2r is written to ~/.local/share/lighthouse/
-
-macOS:
-  Extract Lighthouse-PC-Mac.zip, open Lighthouse.dmg from it and copy
-  Lighthouse into Applications. Then, so
-  the file lands somewhere easy to find, start it from Terminal:
-      mkdir -p ~/lighthouse
-      SHIP_HOME=~/lighthouse /Applications/Lighthouse.app/Contents/MacOS/Lighthouse
-  Choose your ROM. bk.o2r is written to the lighthouse folder in your home folder.
-
-Once the PC game reaches its title screen, bk.o2r is complete and you can quit.
+A bk.o2r made by a PC build of Lighthouse 3DS, built from source, works too:
+put it in the lighthouse folder instead of the ROM. bk.o2r files made by other
+Lighthouse versions, including official HarbourMasters releases, do not work
+with this 3DS app. (A bk.o2r made for 3DS v1.0 or v1.1 works with either.)
 
 
 3. Play

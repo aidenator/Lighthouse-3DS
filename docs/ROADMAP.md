@@ -12,7 +12,11 @@ promises.
   needed. This builds Torch, Lighthouse's asset extractor, into the app. Torch used to hold the
   whole archive in memory (about 730 MB); it now writes each asset as it goes and peaks under
   50 MB, with the same output. Writes go to the SD card in whole aligned 1 MB blocks: unaligned
-  writes ran at 0.1 MB/s.
+  writes ran at 0.1 MB/s. The app looks for the ROM in `3ds/lighthouse/`, next to the `.3dsx`
+  and at the SD card's root, skips other games, and never keeps an archive with assets missing.
+* **Releases are just the 3DS zip.** No PC builds to download; GenerateBuilds still makes them
+  when run by hand.
+* **3D on the file select** uses its own convergence (200), which suits that scene better.
 
 ## Next release (v1.1)
 
@@ -99,8 +103,21 @@ has to fit beside 60 fps.
 
 Bring back the PC version's features where they fit on the 3DS, for example:
 
-* The randomizer
-* Mods. The 3DS can't load code at runtime, so mods would have to be built into the app.
+* **Upstream changes first.** Lighthouse has moved on since this port branched (19 commits by
+  2026-10-25, including randomizer fixes and a version bump to 1.2.0, which means remaking
+  `bk.o2r`). Merge them into this branch, its libultraship and its Torch, before the features
+  below.
+* **The randomizer.**
+* **Mods**, in three kinds:
+  * Asset mods: `.o2r` files that replace models, textures or sounds, dropped in
+    `3ds/lighthouse/mods/`. Slim builds don't load the `mods` folder yet.
+  * Romhacks: made from a hacked ROM, which the app could extract on the 3DS the way it does the
+    base game. Torch already supports them on PC, and the `extract` folder already has the
+    `hashes.yaml` it needs to skip the assets a hack leaves unchanged.
+  * Code mods: the 3DS can't load code at runtime, so these would have to be built into the app.
+
+  Mod authors make and test mods with PC tools: a PC build from source, or a PC download in the
+  release again once mods are supported.
 
 ### Known issues
 
