@@ -79,8 +79,8 @@ static u8 sPortraits[SELECTABLE_PORTAIT_COUNT+1] = {
     ZOOMBOX_SPRITE_13_BLUBBER,
     ZOOMBOX_SPRITE_14_NIPPER,
     ZOOMBOX_SPRITE_15_CLANKER,
-    ZOOMBOX_SPRITE_16_SNIPPET,
-    ZOOMBOX_SPRITE_17_VILE_4,
+    ZOOMBOX_SPRITE_16_MUTIE_SNIPPET,
+    ZOOMBOX_SPRITE_17_VILE,
     ZOOMBOX_SPRITE_18_TIPTUP,
     ZOOMBOX_SPRITE_19_TANKTUP,
     ZOOMBOX_SPRITE_1A_FLIBBIT,
@@ -489,6 +489,8 @@ static void __gcquiz_advanceStateTo(enum gcquiz_state state){
             break;
     }
     sD_803830E0->state = state;
+    CALL_EVENT(OnQuizStateChange, state, sD_803830E0->question_type, sD_803830E0->question_index,
+               (void **)sD_803830E0->zoomboxes, sD_803830E0->answer_values);
 }
 
 void __gcquiz_func_80319E20(s32 portrait_id, s32 zoombox_state) {
@@ -517,6 +519,12 @@ void gcquiz_func_80319EA4(void) {
     
     if(sD_803830E0 == NULL)
         return;
+
+    // [port] Lets the localization layer re-read an open question in a new language
+    CALL_EVENT(OnQuizUpdate, sD_803830E0->state, sD_803830E0->question_type,
+               __gcquiz_get_type_start_id(sD_803830E0->question_type) + sD_803830E0->question_index,
+               (void **)&sD_803830E0->unkC, sD_803830E0->answer_str_counts, sD_803830E0->answer_values,
+               &sD_803830E0->quiz_question.answer_options[0][0], (void **)sD_803830E0->zoomboxes);
 
     controller_copyFaceButtons(0, face_button_states);
     controller_copyJoystick(0, joystick_states);

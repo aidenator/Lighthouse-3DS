@@ -18,6 +18,7 @@
 
 // [port] Double the N64 heap on every target: the port's audio structs outgrow the original
 // size even with 32-bit pointers (the sixth music player's allocation fails on 32-bit x86).
+// #define AUDIO_HEAP_SIZE VER_SELECT(0x21000, 0x23A00, 0x21000, 0x21000)
 #define AUDIO_HEAP_SIZE VER_SELECT(0x42000, 0x47400, 0x42000, 0x42000)
 #define NUM_SAMPLES 184 // n_audio has fixed sample count of 184
 #define NUM_OSC_STATES 48

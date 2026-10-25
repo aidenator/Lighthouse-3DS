@@ -314,8 +314,8 @@ void LighthouseMenu::AddMenuSettings() {
                      .Tooltip("Changes the scaling of the ImGui menu elements.")
                      .DefaultIndex(1)
                      .ComponentAlignment(ComponentAlignments::Right)
-                     .LabelPosition(LabelPositions::Far));
-    //.Callback([](WidgetInfo& info) { GameEngine::Instance->ScaleImGui(); });
+                     .LabelPosition(LabelPositions::Far))
+        .Callback([](WidgetInfo& info) { GameEngine::Instance->ScaleImGui(); });
 
     // Audio Settings
     path.sidebarName = "Audio";
@@ -326,6 +326,14 @@ void LighthouseMenu::AddMenuSettings() {
         .CVar(CVAR_SETTING("Volume.Master"))
         .RaceDisable(false)
         .Options(IntSliderOptions().Min(0).Max(100).DefaultValue(40).ShowButtons(true).Format("%d%%"));
+    AddWidget(path, "Music Volume", WIDGET_CVAR_SLIDER_INT)
+        .CVar(CVAR_SETTING("Volume.Music"))
+        .RaceDisable(false)
+        .Options(IntSliderOptions().Min(0).Max(100).DefaultValue(100).ShowButtons(true).Format("%d%%"));
+    AddWidget(path, "Sound Effects Volume", WIDGET_CVAR_SLIDER_INT)
+        .CVar(CVAR_SETTING("Volume.SFX"))
+        .RaceDisable(false)
+        .Options(IntSliderOptions().Min(0).Max(100).DefaultValue(100).ShowButtons(true).Format("%d%%"));
     AddWidget(path, "Audio API (Needs reload)", WIDGET_AUDIO_BACKEND).RaceDisable(false);
 
     // Graphics Settings

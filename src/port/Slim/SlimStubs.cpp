@@ -278,6 +278,13 @@ void port_eggToll_clearForLevel(int32_t levelId) {
 void port_puzzleStep_clearForLevel(int32_t levelId) {
 }
 
+// The mod menu's notes about archives from another Lighthouse version: there is no menu to show them
+void NoteOutdatedLanguagePack(const std::string& name) {
+}
+
+void MaybeShowOutdatedArchivesPopup() {
+}
+
 // Extraction: bk.o2r is made on a PC, or (LH_ROM_EXTRACT) here from a ROM on first start
 
 // Checked on the archive FinishInit opens: opening bk.o2r costs seconds on the 3DS, mostly

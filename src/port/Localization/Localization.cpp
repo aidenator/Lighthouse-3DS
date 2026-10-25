@@ -29,6 +29,7 @@ extern u8* D_80365DF8[];                     // top instruction line 1, indexed 
 extern u8* D_80365DFC[];                     // erase-confirm prompt, indexed by language
 int code94620_func_8031B5B0(void);           // current dialog-language index (0=EN,1=FR,2=DE)
 int func_8031877C(void* zoombox);            // clear a zoombox's strings before re-setting
+int levelSpecificFlags_get(int i);
 
 // Print font internals
 extern void* print_sFontSpriteAssets[]; // BKSprite*[5]: font alphamask assets (slot 2 = JP font)
@@ -47,9 +48,7 @@ namespace {
 constexpr int kJpDialogFontAssetId = 0x6EA;    // SPRITE_JP_DIALOG_FONT_ALPHAMASK
 constexpr int kDialogFontAssetId = 0x6EB;      // SPRITE_DIALOG_FONT_ALPHAMASK (base/latin, slot 0)
 constexpr int kBoldLettersFontAssetId = 0x6EC; // SPRITE_BOLD_FONT_LETTERS_ALPHAMASK (world names, headers)
-constexpr int kJpFontFreeDelayFrames = 5;      // grace frames before freeing slot 2
 int sFontLanguageGen = 0;
-int sJpFontFreeDelay = 0;
 bool sDialogFontOverridden = false; // slot 0 currently holds a pack's glyph sheet
 bool sBoldFontOverridden = false;   // bold-letters font currently holds a pack's glyph sheet
 
@@ -111,7 +110,7 @@ extern "C" int port_pauseMenuNeedsRefresh(void) {
     static int sLair = 0;
     static bool sInit = false;
     int gen = ResourceMgr_GetLanguageGeneration();
-    int lair = CVarGetInteger(CVAR_ENHANCEMENT("Restorations.ReturnToLair"), 0);
+    int lair = CVarGetInteger(CVAR_ENHANCEMENT("Gameplay.ReturnToLair"), 0);
     if (!sInit) {
         sInit = true;
         sGen = gen;
@@ -511,6 +510,9 @@ static void buildPalJpParades() {
 // still supply 0x11CA as an additive asset, so key the alt parade on that credit being
 // present in the active language (sDialogOverride) rather than on the base version.
 static constexpr uint32_t kMotzandParadeCreditId = 0x11CA;
+static constexpr int32_t kPresentMeetBlueDialogId = 0xC20; // then green, red
+static constexpr int32_t kJpPresentLinesDialogId = 0x1614;
+
 static bool port_useMotzandParade() {
     return ResourceMgr_IsJapanese() || ResourceMgr_IsPal() || ResourceMgr_IsAssetRepointed(kMotzandParadeCreditId) != 0;
 }
@@ -546,17 +548,14 @@ static void RegisterLocalizedText() {
     D_80365DFC[2] = (u8*)"SICHER? DR]CKE A, UM ZU BEST[TIGEN, ODER B, UM ZU WIDERRUFEN.";
 
     // Drive the JP dialog-font slot off the language generation, at a safe
-    // between-frames point: load slot 2 when Japanese becomes active, and on
-    // switch away defer the free a few frames so in-flight JP strings finish.
+    // between-frames point: load slot 2 when Japanese becomes active. On switch
+    // away it stays loaded, since JP text already on screen keeps drawing from it.
     REGISTER_LISTENER(GameFrameUpdate, EVENT_PRIORITY_NORMAL, [](IEvent* event) {
         int gen = ResourceMgr_GetLanguageGeneration();
         if (gen != sFontLanguageGen) {
             sFontLanguageGen = gen;
             if (ResourceMgr_IsJapanese()) {
-                sJpFontFreeDelay = 0; // cancel a pending free; ensure slot 2 is current
                 LoadJpFontSlot();
-            } else if (print_sFontSpriteAssets[2] != nullptr) {
-                sJpFontFreeDelay = kJpFontFreeDelayFrames;
             }
             bool fontOverridden = ResourceMgr_IsAssetRepointed(kDialogFontAssetId) != 0;
             if (fontOverridden || sDialogFontOverridden) {
@@ -569,14 +568,11 @@ static void RegisterLocalizedText() {
                 sBoldFontOverridden = boldOverridden;
             }
         }
-        if (sJpFontFreeDelay > 0 && --sJpFontFreeDelay == 0) {
-            FreeJpFontSlot();
-        }
     });
 
-    // Font slot fallback: the JP font (slot 2) can be momentarily unloaded for a
-    // frame across a language swap. Redirect to the base font (glyph 0) for that
-    // frame instead of letting the draw dereference a NULL slot.
+    // Font slot fallback: the JP font (slot 2) is only loaded once Japanese has been
+    // active on this map. A font-2 letter drawn without it is redirected to the base
+    // font (glyph 0) instead of letting the draw dereference a NULL slot.
     REGISTER_LISTENER(ResolveBoldFontSlot, EVENT_PRIORITY_NORMAL, [](IEvent* event) {
         auto* ev = (ResolveBoldFontSlot*)event;
         if (print_sFontSpriteAssets[*ev->slot] == nullptr) {
@@ -704,16 +700,28 @@ static void RegisterLocalizedText() {
     });
 
     // The Motzand parade inserts Motzand at index 20, which shifts the later
-    // credit-dialog ids by one. 0x11CA is the Motzand credit: on a PAL/JP base it
-    // re-points to that version's native dialog (PAL 3065 / JP 3073) via the override;
-    // on a US base it resolves to the pack's additive 0x11CA asset. The other shifted
-    // ids (0x11AF + index - 1) are v1.0 canonical and resolve directly from the base.
+    // credit-dialog ids by one. 0x11CA is the Motzand credit: PAL and JP bases carry it,
+    // and on a US base it resolves to the pack's additive 0x11CA asset. The other shifted
+    // ids (0x11AF + index - 1) resolve directly from the base.
     REGISTER_LISTENER(ParadeCreditDialogId, EVENT_PRIORITY_NORMAL, [](IEvent* event) {
         auto* ev = (ParadeCreditDialogId*)event;
         if (!port_useMotzandParade() || ev->index <= 19 || ev->dialogId == nullptr) {
             return;
         }
         *ev->dialogId = (ev->index == 20) ? kMotzandParadeCreditId : (0x11AF + ev->index - 1);
+    });
+
+    // JP gives each present's three lines their own dialogs
+    REGISTER_LISTENER(PresentDialogId, EVENT_PRIORITY_NORMAL, [](IEvent* event) {
+        auto* ev = (PresentDialogId*)event;
+        const int32_t present = *ev->dialogId - kPresentMeetBlueDialogId;
+        if (!ResourceMgr_IsJapanese() || present < 0 || present > 2) {
+            return;
+        }
+        const int count = levelSpecificFlags_get(0x2A) + levelSpecificFlags_get(0x2B) + levelSpecificFlags_get(0x2C);
+        if (count >= 2) {
+            *ev->dialogId = kJpPresentLinesDialogId + present * 2 + (count - 2);
+        }
     });
 
     // The port owns the dialog-language index (driven by the language picker). The

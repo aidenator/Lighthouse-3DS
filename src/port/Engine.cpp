@@ -37,6 +37,7 @@
 
 #include "build.h"
 #include "Extractor/ExtractFlow.h"
+#include "GameVersion/BaseGameVersion.h"
 #ifdef LH_SLIM
 #include <factories/ResourceType.h>
 extern "C" {
@@ -64,6 +65,7 @@ extern "C" {
 #include "src/port/Enhancements/Events/Hooks/Events.h"
 #include "UI/LighthouseGui.hpp"
 #include "UI/LighthouseModMenuWindow.h"
+#include "FrameHost.h"
 #include "LaunchArgs.h"
 
 #ifdef __SWITCH__
@@ -90,6 +92,7 @@ int sHoldFramesRemaining = 0;
 std::shared_ptr<Fast::Fast3dWindow> lhFast3dWindow;
 bool portArchiveVersionMatch = false;
 std::string assets_path;
+std::shared_ptr<Ship::Archive> romArchive;
 
 int32_t previousImGuiScaleIndex = -1;
 float previousImGuiScale = defaultImGuiScale;
@@ -132,16 +135,16 @@ GameEngine::GameEngine() {
     // Register console commands for menu buttons
     Ship::Context::GetRawInstance()->GetConsole()->AddCommand(
         "reset", { [](std::shared_ptr<Ship::Console>, const std::vector<std::string>&, std::string*) -> bool {
-                      gPortResetPending = 1; // lets audio spin-waits exit immediately
-                      setBootMap(getDefaultBootMap());
-                      D_80275610 = 3 + 1; // deferred: mainLoop picks this up next frame
-                      CALL_EVENT(OnReset);
+                      auto host = Lighthouse::GetFrameHost();
+                      if (host == nullptr || !host->WantsFrame()) {
+                          RequestReset();
+                      }
                       return 0;
                   },
                    "Reset the game." });
     Ship::Context::GetRawInstance()->GetConsole()->AddCommand(
         "quit", { [](std::shared_ptr<Ship::Console>, const std::vector<std::string>&, std::string*) -> bool {
-                     Ship::Context::GetRawInstance()->GetWindow()->Close();
+                     Quit();
                      return 0;
                  },
                   "Quit the game." });
@@ -167,6 +170,26 @@ GameEngine::GameEngine() {
     previousImGuiScale = defaultImGuiScale;
     ScaleImGui();
 #endif
+}
+
+void GameEngine::RequestReset() {
+    gPortResetPending = 1; // lets audio spin-waits exit immediately
+    setBootMap(getDefaultBootMap());
+    D_80275610 = 3 + 1; // deferred: mainLoop picks this up next frame
+    CALL_EVENT(OnReset);
+}
+
+// mainLoop unloads the game on its next tick
+void GameEngine::RequestStop() {
+    gPortResetPending = 1;
+    D_80275610 = 0 + 1;
+}
+
+void GameEngine::Quit() {
+    auto host = Lighthouse::GetFrameHost();
+    if (host == nullptr || !host->HoldQuit()) {
+        Ship::Context::GetRawInstance()->GetWindow()->Close();
+    }
 }
 
 // Startup
@@ -253,6 +276,13 @@ static void LoadLanguagePacks() {
         }
         for (const auto& p : std::filesystem::directory_iterator(dir, ec)) {
             if (p.is_regular_file() && p.path().extension() == ".o2r") {
+                // A pack with no portVersion is a custom one, built with Torch
+                if (Lighthouse::ReadArchiveStamp(p.path().generic_string()) == Lighthouse::ArchiveStamp::Outdated) {
+                    SPDLOG_WARN("Refusing {} language pack extracted by another version of Lighthouse: {}", what,
+                                p.path().generic_string());
+                    NoteOutdatedLanguagePack(p.path().filename().generic_string());
+                    continue;
+                }
                 SPDLOG_INFO("Loading {} language pack: {}", what, p.path().generic_string());
                 Ship::Context::GetRawInstance()->GetResourceManager()->GetArchiveManager()->AddArchive(
                     p.path().generic_string());
@@ -271,26 +301,35 @@ void Slim_CheckRomArchive(const std::shared_ptr<Ship::Archive>& archive, const s
 #endif
 
 void GameEngine::FinishInit() {
+    const bool hosted = Lighthouse::GetFrameHost() != nullptr;
     for (const auto& archive : kRomArchives) {
         std::string romPath = Ship::Context::LocateFileAcrossAppDirs(archive, "bk");
-        if (std::filesystem::exists(romPath)) {
-            auto added = context->GetResourceManager()->GetArchiveManager()->AddArchive(romPath);
-#ifdef LH_SLIM
-            Slim_CheckRomArchive(added, archive);
-#endif
+        std::shared_ptr<Ship::Archive> added;
+        if (romArchive != nullptr && romArchive->GetPath() == romPath) {
+            added = context->GetResourceManager()->GetArchiveManager()->AddArchive(romArchive);
+        } else if (std::filesystem::exists(romPath)) {
+            added = context->GetResourceManager()->GetArchiveManager()->AddArchive(romPath);
+        } else {
+            continue;
         }
+#ifdef LH_SLIM
+        Slim_CheckRomArchive(added, archive);
+#endif
     }
+    romArchive = nullptr;
 
     const std::string patches_path = Ship::Context::GetPathRelativeToAppDirectory("mods");
     if (!patches_path.empty() && !std::filesystem::exists(patches_path)) {
         std::filesystem::create_directories(patches_path);
     }
 
-    Lighthouse::ApplyLaunchHack();
-    UpdateModFiles(true);
-    LoadLooseModDirectories(patches_path);
-    LoadLanguagePacks();
-    ResourceHelpers_BuildOverlayRepoints();
+    if (!hosted) {
+        Lighthouse::ApplyLaunchHack();
+        UpdateModFiles(true);
+        LoadLooseModDirectories(patches_path);
+        LoadLanguagePacks();
+        ResourceHelpers_BuildOverlayRepoints();
+    }
 
 #if (_DEBUG)
     auto defaultLogLevel = spdlog::level::debug;
@@ -329,9 +368,11 @@ void GameEngine::FinishInit() {
     Lighthouse::RescanLanguages();
 
     LighthouseGui::SetupGuiElements();
-    Lighthouse::RestoreModSelectionAfterLaunchHack();
-    MaybeShowModConflictPopup();
-    MaybeShowRomhackBaseMismatchPopup();
+    if (!hosted) {
+        Lighthouse::RestoreModSelectionAfterLaunchHack();
+        MaybeShowModConflictPopup();
+        MaybeShowOutdatedArchivesPopup();
+    }
     // Instance->LoadDictionary();
     // Instance->LoadPlayerAnims();
 #if defined(__SWITCH__) || defined(__WIIU__)
@@ -454,6 +495,14 @@ void GameEngine::Destroy() {
 #ifdef __SWITCH__
     Ship::Switch::Exit();
 #endif
+}
+
+void GameEngine::ArchivesChanged() {
+    if (auto interpreter = lhFast3dWindow->GetInterpreterWeak().lock()) {
+        interpreter->TextureCacheClear();
+    }
+    ResourceHelpers_ClearRefCache();
+    port_spriteDisplayCache_clear();
 }
 
 void GameEngine::StartFrame() const {

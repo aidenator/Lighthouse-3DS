@@ -47,6 +47,7 @@ typedef struct sprite_prop_s{
 
 #define SPRITE_ASSET_OFFSET 0x572
 
+// 3D Poly
 typedef struct model_prop_s{
     union{
         u16 unk0;
@@ -55,8 +56,8 @@ typedef struct model_prop_s{
             u16 pad0_19:4;
         };
     };
-    u8 yaw;
-    u8 roll;
+    u8 yaw;  // degrees / 2, never above 179
+    u8 roll; // degrees / 2, never above 179
 #if UINTPTR_MAX > 0xFFFFFFFFu
     u32 _pad64;
 #endif
@@ -69,7 +70,7 @@ typedef struct model_prop_s{
             s16 position_z;
         };
     };
-    u8 scale;
+    u8 scale; // 0.00 to 2.55
     u8 padB_7:2;
     u8 unkB_5:1;
     u8 unkB_4:1;
@@ -329,13 +330,15 @@ typedef struct actor_s{
     uintptr_t unk154;
     ParticleEmitter *unk158[2];
     void *unk160; //saved marker->unk54
-    // [port] The game indexes unk164 as three hit counters, so the third is unk166. Declared as a
-    // two-byte array, writing or reading [2] is undefined and -O3 does not keep it.
+    // [port] The hit counters are indexed 0-2, so unk166 is unk164[2]. Reading or writing [2] of a
+    // two-byte array is undefined, and an optimizing compiler doesn't have to keep it.
+//  u8  unk164[0x2];
+//  u8  unk166;
     union {
-        u8 unk164[0x3];
+        u8  unk164[0x3];
         struct {
-            u8 pad164[0x2];
-            u8 unk166;
+            u8  pad164[0x2];
+            u8  unk166;
         };
     };
     s8  pad167[0x1];
@@ -415,13 +418,13 @@ typedef struct {
             s16 position_z;
         };
     };
-    u16 selector_or_radius:9; // selector / volume / diameter?
+    u16 selector_or_radius:9; // horizontal radius; the volume is a cylinder
     u16 category:6;
     u16 bit0:1;
     u16 actorId;
     u8 markerId;
     u8 padB;
-    u32 yaw:9;
+    u32 yaw:9; // degrees, never above 359
     u32 scale:23;
     u32 unk10_31:12; // unk10_31 and unk10_19 seem to be related
     u32 unk10_19:12; // unk10_31 and unk10_19 seem to be related

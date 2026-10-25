@@ -24,15 +24,18 @@ void PortEnhancements_Register() {
     REGISTER_EVENT(OnMapLoad);
     REGISTER_EVENT(OnMapLoadStub);
     REGISTER_EVENT(OnDialogLoaded);
+    REGISTER_EVENT(OnDialogUpdate);
     REGISTER_EVENT(OnModelLoad);
     REGISTER_EVENT(OnModelDisplayListLoad);
     REGISTER_EVENT(OnModelBinBuilt);
+    REGISTER_EVENT(OnModelDraw);
     REGISTER_EVENT(ViewportFrustumUpdate);
     REGISTER_EVENT(CameraRotationAuthored);
     REGISTER_EVENT(MapModelXluScale);
     REGISTER_EVENT(OnTransitionModelScale);
     REGISTER_EVENT(OnTransitionStateUpdate);
     REGISTER_EVENT(DrawDistanceCubeWidth);
+    REGISTER_EVENT(CubeDrawRange);
     REGISTER_EVENT(MapUnderwaterTint);
     REGISTER_EVENT(OnActorTick);
     REGISTER_EVENT(OnPropTick);
@@ -46,12 +49,14 @@ void PortEnhancements_Register() {
     REGISTER_EVENT(OnFileSelectPortrait);
     REGISTER_EVENT(LocalizeParade);
     REGISTER_EVENT(ParadeCreditDialogId);
+    REGISTER_EVENT(PresentDialogId);
     REGISTER_EVENT(ResolveBoldFontSlot);
 
     // Register draw events
     REGISTER_EVENT(OnParadeNameDraw);
     REGISTER_EVENT(OnJinjoHeadDraw);
     REGISTER_EVENT(ResolveSpriteHdPath);
+    REGISTER_EVENT(ResolveAnimTextureHd);
     REGISTER_EVENT(OnBoldFontLetterBuilt);
     REGISTER_EVENT(ResolveBoldFontHd);
     REGISTER_EVENT(OnBoldFontReset);
@@ -64,6 +69,11 @@ void PortEnhancements_Register() {
     REGISTER_EVENT(OnBoggyRaceSetSpeed);
     REGISTER_EVENT(OnMrVileSetSpeed);
     REGISTER_EVENT(OnFurnaceFunDialog);
+    REGISTER_EVENT(OnQuizStateChange);
+    REGISTER_EVENT(OnQuizUpdate);
+    REGISTER_EVENT(OnLairRelease);
+    REGISTER_EVENT(OnRollInit);
+    REGISTER_EVENT(OnRollUpdate);
     REGISTER_EVENT(OnGeoCull);
     REGISTER_EVENT(OnGruntyJinjonatorComplete);
     REGISTER_EVENT(OnIntroCutsceneCheck);
@@ -85,6 +95,7 @@ void PortEnhancements_Register() {
     REGISTER_EVENT(OnGameFlagSet);
     REGISTER_EVENT(OnItemCountChanged);
     REGISTER_EVENT(OnCollectibleCollected);
+    REGISTER_EVENT(OnConsumableCollected);
     REGISTER_EVENT(OnCarryThrow);
     REGISTER_EVENT(OnAbilityLearned);
     REGISTER_EVENT(OnJiggySpawned);

@@ -1026,6 +1026,8 @@ BKModelBin *modelRender_draw(Gfx **gfx, Mtx **mtx, f32 position[3], f32 rotation
     func_80349AD0();
     if(model_bin == NULL){
         model_bin = assetcache_get(sSecondaryModelData.model_id);
+        // [port] Player colors for the file select's Banjos, drawn by model id
+        CALL_EVENT(OnModelDraw, sSecondaryModelData.model_id, model_bin);
     }
     modelRenderModelBin = model_bin;
     modelRenderDisplayList = modelRenderDisplayList ? modelRenderDisplayList : modelbin_getGfxList_MACRO(modelRenderModelBin),
@@ -1069,6 +1071,10 @@ BKModelBin *modelRender_draw(Gfx **gfx, Mtx **mtx, f32 position[3], f32 rotation
             if(AnimTextureListCache_tryGetTextureOffset(modelRenderAnimatedTexturesCacheId, i_segment, &texture_offset)){
                 uintptr_t base = (uintptr_t)&modelRenderTextureList->texture_infos[modelRenderTextureList->count];
                 gSPSegment((*gfx)++, 15 - i_segment, osVirtualToPhysical((void *)(base + (uintptr_t)texture_offset)));
+                // [port] ModelFactory moved this slot's pixel load to segment 7 + slot
+                uintptr_t frame = base + (uintptr_t)texture_offset;
+                CALL_EVENT(ResolveAnimTextureHd, (void *)base, i_segment, texture_offset, &frame);
+                gSPSegment((*gfx)++, 7 + i_segment, osVirtualToPhysical((void *)frame));
             }
         }
     }

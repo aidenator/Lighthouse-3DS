@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.26.0 FATAL_ERROR)
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
 # Set the project version and language
-project(Lighthouse VERSION 1.1.0 LANGUAGES C CXX ASM)
+project(Lighthouse VERSION 1.2.0 LANGUAGES C CXX ASM)
 include(FetchContent)
 
 include(cmake/lighthouse-cvars.cmake)
@@ -28,7 +28,7 @@ math(EXPR PATCH_INDEX "${PROJECT_VERSION_PATCH}")
 # Use the patch number to select the correct word
 list(GET NATO_PHONETIC_ALPHABET ${PATCH_INDEX} PROJECT_PATCH_WORD)
 
-set(PROJECT_BUILD_NAME "Hatteras ${PROJECT_PATCH_WORD}" CACHE STRING "" FORCE)
+set(PROJECT_BUILD_NAME "Montauk ${PROJECT_PATCH_WORD}" CACHE STRING "" FORCE)
 #set(PROJECT_TEAM "SonicDcer & Lywx" CACHE STRING "" FORCE)
 
 # Get Git Information
@@ -273,7 +273,7 @@ if(LH_SLIM)
     # Features with no place on a constrained target. Headers stay on the include path;
     # remaining call sites are guarded with LH_SLIM.
     list(FILTER ALL_FILES EXCLUDE REGEX "src/port/(Rando|Network|DevTools|Presets|Nametag|Extractor|UI|Enhancements/Trackers)/.*\\.(c|cpp)$")
-    list(FILTER ALL_FILES EXCLUDE REGEX "src/port/(FilePicker|Controller/Mapper)\\.cpp$")
+    list(FILTER ALL_FILES EXCLUDE REGEX "src/port/(FilePicker|Controller/Mapper|Enhancements/Cosmetics/CosmeticsEditor)\\.cpp$")
     # Bundle drop physics live with the randomizer but note retention uses them too
     list(APPEND ALL_FILES "src/port/Rando/CustomObject/CustomObjectSettings.cpp")
 else()
