@@ -213,9 +213,69 @@ bool IsTimedTask(void* dlStart) {
 bool sTaskReleased = true;
 bool sReleaseDeferred = false;
 
+// DP and SP events thread5's queue had no room for. A lost DP means the frame's swap token never
+// comes and the game waits for it forever, so they're kept and delivered in order on the next
+// passes instead. The queue fills when thread5 gets no CPU for a while: it holds 20 messages, and
+// VI retraces alone add 60 a second.
+int sUndeliveredDp = 0;
+int sUndeliveredSp = 0;
+
+bool DeliverTaskDone() {
+    while (sUndeliveredDp > 0) {
+        if (OS_SendEventMesg(OS_EVENT_DP) != 0) {
+            return false;
+        }
+        sUndeliveredDp--;
+    }
+    while (sUndeliveredSp > 0) {
+        if (OS_SendEventMesg(OS_EVENT_SP) != 0) {
+            return false;
+        }
+        sUndeliveredSp--;
+    }
+    return true;
+}
+
+}
+
+extern "C" s32 thread5_isGfxIdle(void);
+
+// The game waits here, in vimgr.c, for the token the frame's last graphics task sends when it's
+// drawn. Rarely the token never comes, though everything handed over was drawn (seen on the 3DS,
+// cause not yet known), and the game would wait for good. So wait in slices, and once nothing in
+// the pipeline could still send it, carry on without it.
+extern "C" void port_waitFrameToken(OSMesgQueue* mq) {
+    while (OS_RecvMesgTimeout(mq, nullptr, 250) != 0) {
+        if (!WindowIsRunning()) {
+            return;
+        }
+        const bool rcpIdle = OS_SpPeekPendingTask() == nullptr && !sReleaseDeferred && sUndeliveredDp == 0 &&
+                             sUndeliveredSp == 0;
+        if (rcpIdle && thread5_isGfxIdle()) {
+            static int sRecoveries = 0;
+            SPDLOG_WARN("The frame's swap token never came; going on without it ({} so far)", ++sRecoveries);
+            return;
+        }
+    }
+}
+
+extern "C" void port_noteDroppedFrameToken(void) {
+    static int sDropped = 0;
+    if (++sDropped <= 20) {
+        SPDLOG_WARN("A frame's swap token was dropped: the game hadn't taken the last one ({} so far)", sDropped);
+    }
+}
+
+namespace {
 void SendTaskDone() {
-    OS_SendEventMesg(OS_EVENT_DP);
-    OS_SendEventMesg(OS_EVENT_SP);
+    sUndeliveredDp++;
+    sUndeliveredSp++;
+    if (!DeliverTaskDone()) {
+        static int sRefusals = 0;
+        if (++sRefusals <= 20) {
+            SPDLOG_WARN("Thread5's queue is full; delivering the task's DP/SP events later ({} so far)", sRefusals);
+        }
+    }
 }
 } // namespace
 
@@ -240,6 +300,10 @@ namespace {
 // goes out. DP has to lead: SP frees thread5 to start the next task, and starting
 // one overwrites the flags the frame's swap token gates on.
 int ServiceRcp() {
+    // A finished task's events go out before the next task starts
+    if (!DeliverTaskDone()) {
+        return 0;
+    }
     if (sReleaseDeferred) {
         if (osDpGetStatus() & DPC_STATUS_FREEZE) {
             return 0;
@@ -266,7 +330,8 @@ int ServiceRcp() {
 }
 
 void ParkGame() {
-    while ((OS_SpPeekPendingTask() != nullptr || sReleaseDeferred) && WindowIsRunning()) {
+    while ((OS_SpPeekPendingTask() != nullptr || sReleaseDeferred || sUndeliveredDp > 0 || sUndeliveredSp > 0) &&
+           WindowIsRunning()) {
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
         ThreadWatchdog_Beat(WATCHDOG_GAME_TICK);
     }

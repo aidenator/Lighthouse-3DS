@@ -99,6 +99,13 @@ void osSpTaskStartGo(OSTask* task);
 
 // [port] The queues are static; Game.cpp opts them into blocking before
 // thread5_create runs.
+// [port] No graphics task running or queued, and the RDP not frozen: nothing can still raise the
+// DP event that sends the frame's swap token
+s32 thread5_isGfxIdle(void) {
+    return sUnkFlag1 == UNKFLAG1_NO_TASK && sActiveGfxTaskDataID == sSelectedGfxTaskDataID &&
+           !(osDpGetStatus() & DPC_STATUS_FREEZE);
+}
+
 OSMesgQueue* thread5_getTaskQueue(void) {
     return &sThread5MesgQueue;
 }

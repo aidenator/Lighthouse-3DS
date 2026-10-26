@@ -180,6 +180,37 @@ int32_t osRecvMesg(OSMesgQueue* mq, OSMesg* msg, int32_t flag) {
     return 0;
 }
 
+int32_t OS_RecvMesgTimeout(OSMesgQueue* mq, OSMesg* msg, int32_t timeoutMs) {
+    std::unique_lock<std::mutex> lock(sMesgMutex);
+    QueueSync& sync = SyncFor(mq);
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(timeoutMs);
+    int waitSlot = -1;
+    while (mq->validCount == 0) {
+        if (!sync.blockingEnabled) {
+            ClearBlockedWait(waitSlot);
+            return -1;
+        }
+        if (waitSlot < 0) {
+            waitSlot = MarkBlockedWait(mq, 0);
+        }
+        const auto waitStart = std::chrono::steady_clock::now();
+        const bool timedOut = sync.notEmpty.wait_until(lock, deadline) == std::cv_status::timeout;
+        tBlockedMs += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - waitStart).count();
+        if (timedOut && mq->validCount == 0) {
+            ClearBlockedWait(waitSlot);
+            return -1;
+        }
+    }
+    ClearBlockedWait(waitSlot);
+    if (msg != nullptr) {
+        *msg = mq->msg[mq->first];
+    }
+    mq->first = (mq->first + 1) % mq->msgCount;
+    mq->validCount--;
+    sync.notFull.notify_one();
+    return 0;
+}
+
 void osSetEventMesg(OSEvent event, OSMesgQueue* mq, OSMesg msg) {
     std::lock_guard<std::mutex> lock(sMesgMutex);
     if (event < OS_NUM_EVENTS) {
@@ -225,18 +256,18 @@ int OS_MesgSnapshotBlockedWaits(OS_BlockedWait* out, int max) {
 
 // Raise a hardware event. Nothing interrupts on PC, so whoever stands in for a
 // piece of hardware calls this when the real one would have fired.
-void OS_SendEventMesg(OSEvent event) {
+int OS_SendEventMesg(OSEvent event) {
     OSMesgQueue* mq = nullptr;
     OSMesg msg = {};
     {
         std::lock_guard<std::mutex> lock(sMesgMutex);
         if (event >= OS_NUM_EVENTS || __osEventStateTab[event].queue == nullptr) {
-            return;
+            return -1;
         }
         mq = __osEventStateTab[event].queue;
         msg = __osEventStateTab[event].msg;
     }
-    osSendMesg(mq, msg, OS_MESG_NOBLOCK);
+    return osSendMesg(mq, msg, OS_MESG_NOBLOCK);
 }
 
 // Same, but the message goes to the front of the queue. An interrupt landed

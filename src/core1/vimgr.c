@@ -169,7 +169,10 @@ s32 viMgr_func_8024BFA0(void){
 }
 
 void viMgr_func_8024BFAC(void){
-    osSendMesg32(&sMesgQueue2, 0, OS_MESG_NOBLOCK);
+    // [port] The queue holds one token; note when one is lost to a full queue
+    if (osSendMesg32(&sMesgQueue2, 0, OS_MESG_NOBLOCK) != 0) {
+        port_noteDroppedFrameToken();
+    }
 }
 
 void viMgr_func_8024BFD8(s32 arg0){
@@ -183,7 +186,8 @@ void viMgr_func_8024BFD8(s32 arg0){
     defragthread_setPriority(DEFRAGMANAGER_THREAD_PRI_HIGH);
     defragthread_resume();
     if(arg0){
-        osRecvMesg(&sMesgQueue2, NULL, OS_MESG_BLOCK);
+        // [port] A lost token would otherwise hang the game here for good
+        port_waitFrameToken(&sMesgQueue2);
     }
 
     while(D_802808D8 < viBudget - D_80280E90){

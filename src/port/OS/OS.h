@@ -53,7 +53,8 @@ typedef struct OS_BlockedWait {
 int OS_MesgSnapshotBlockedWaits(OS_BlockedWait* out, int max);
 
 // Raise a registered hardware event (VI retrace, SI done, RDP done).
-void OS_SendEventMesg(OSEvent event);
+// 0 when sent, -1 when the event isn't set up or its queue is full (the message is dropped)
+int OS_SendEventMesg(OSEvent event);
 
 // Raise an event ahead of whatever the recipient already has queued, the way
 // an interrupt preempts. Used for completions that must not be reordered
@@ -89,6 +90,16 @@ OSTask* OS_SpTakePendingTask(void);
 
 // Same, but without consuming it; the watchdog reports what is in flight.
 OSTask* OS_SpPeekPendingTask(void);
+
+// osRecvMesg on a blocking queue, but giving up after timeoutMs: 0 when a message came, -1 when
+// it timed out (or the queue isn't blocking and is empty)
+int32_t OS_RecvMesgTimeout(OSMesgQueue* mq, OSMesg* msg, int32_t timeoutMs);
+
+// Waits for the frame's swap token on mq (vimgr.c), recovering if it was lost: see Game.cpp
+void port_waitFrameToken(OSMesgQueue* mq);
+
+// The swap token couldn't be sent because the game hadn't taken the last one
+void port_noteDroppedFrameToken(void);
 
 // VI swap timing, for starting a frame's render on the retrace its swap latches on.
 long long OS_SteadyNs(void);
