@@ -1,3 +1,4 @@
+#include <stdio.h>
 // BanjoDecomp: core1/code_8C50.c
 // Needs to be included here because interrupt.h contains:
 // typedef u32 OSIntMask; and u32 isn't defined before that.
@@ -106,6 +107,52 @@ s32 thread5_isGfxIdle(void) {
            !(osDpGetStatus() & DPC_STATUS_FREEZE);
 }
 
+// [port] The last events that touched the frame's swap flag, written to the log when the game
+// has to go on without a swap token (port_waitFrameToken), to find out how the flag got lost.
+// Kinds: S gfx task started, D DP event, d DP sent the token, P SP event, V retrace cleared the
+// freeze, v other retraces, Y gfx task yielded for audio, R yielded task resumed, C sync event;
+// from other threads: X renderer sent DP/SP (extra 1: deferred until the freeze cleared),
+// G game starts waiting for the token, g game got it.
+typedef struct {
+    char kind;
+    u8 flag1;
+    u8 frozen;
+    u8 active;
+    u8 selected;
+    s32 flag2;
+    s32 saved;
+    s32 extra;
+} Thread5TraceEntry;
+
+#define THREAD5_TRACE_SIZE 256
+static Thread5TraceEntry sThread5Trace[THREAD5_TRACE_SIZE];
+static u32 sThread5TraceNext;
+
+void thread5_trace(char kind, s32 extra) {
+    Thread5TraceEntry *e = &sThread5Trace[sThread5TraceNext++ % THREAD5_TRACE_SIZE];
+    e->kind = kind;
+    e->flag1 = (u8)sUnkFlag1;
+    e->frozen = (osDpGetStatus() & DPC_STATUS_FREEZE) != 0;
+    e->active = (u8)sActiveGfxTaskDataID;
+    e->selected = (u8)sSelectedGfxTaskDataID;
+    e->flag2 = sUnkFlag2;
+    e->saved = sUnkFlag2_Saved;
+    e->extra = extra;
+}
+
+void thread5_logTrace(void) {
+    char line[128];
+    u32 count = sThread5TraceNext < THREAD5_TRACE_SIZE ? sThread5TraceNext : THREAD5_TRACE_SIZE;
+    u32 i;
+    for (i = 0; i < count; i++) {
+        const Thread5TraceEntry *e = &sThread5Trace[(sThread5TraceNext - count + i) % THREAD5_TRACE_SIZE];
+        snprintf(line, sizeof(line), "thread5 %c flag1=%#x flag2=%#x saved=%#x frozen=%d gfx=%d/%d extra=%#x",
+                 e->kind, e->flag1, (unsigned)e->flag2, (unsigned)e->saved, e->frozen, e->active, e->selected,
+                 (unsigned)e->extra);
+        port_logWarn(line);
+    }
+}
+
 OSMesgQueue* thread5_getTaskQueue(void) {
     return &sThread5MesgQueue;
 }
@@ -180,6 +227,7 @@ void thread5_startF3DEXTask(struct ucode_task_data_s *task_data) {
         sUnkFlag2_Saved = sUnkFlag2;
         sUnkCounter3 = 30;
     }
+    thread5_trace('S', task_data->unk4);
 }
 
 void thread5_startL3DEXTask(struct ucode_task_data_s *task_data) {
@@ -200,6 +248,7 @@ void thread5_startL3DEXTask(struct ucode_task_data_s *task_data) {
         sUnkFlag2_Saved = sUnkFlag2;
         sUnkCounter3 = 30;
     }
+    thread5_trace('S', task_data->unk4);
 }
 
 void thread5_startGfxTask(struct ucode_task_data_s *task_data) {
@@ -240,6 +289,7 @@ void thread5_handleL3DEXTaskMesg(OSMesg msg) {
 }
 
 void thread5_handleSyncEvent(void) {
+    thread5_trace('C', sSyncCounter);
     if ((sUnkFlag1 == UNKFLAG1_NO_TASK)
         && (sUnkFlag2_Saved == 2)
         && (sActiveGfxTaskDataID == sSelectedGfxTaskDataID)
@@ -255,10 +305,12 @@ void thread5_handleSyncEvent(void) {
 extern u64 osClockRate;
 
 void thread5_handleDPEvent(void) {
+    thread5_trace('D', 0);
     if (sUnkFlag2_Saved & 0x40000000) {
         osDpSetStatus(DPC_SET_FREEZE);
         sCurrentFramebuffer = osViGetCurrentFramebuffer();
         viMgr_func_8024BFAC();
+        thread5_trace('d', 0);
     }
     sUnkFlag2 = sUnkFlag2_Saved = 2;
     sUnkCounter3 = 0;
@@ -275,6 +327,7 @@ void thread5_handleDPEvent(void) {
 }
 
 void thread5_handleVIRetraceEvent(void) {
+    thread5_trace('v', osViGetCurrentFramebuffer() != sCurrentFramebuffer);
     s32 sp2C = (sSyncCounter != 0) && (sActiveGfxTaskDataID == sSelectedGfxTaskDataID) && (sUnkFlag2 == 2) && (sUnkFlag1 == UNKFLAG1_NO_TASK);
     volatile s32 sp30;
 
@@ -284,6 +337,7 @@ void thread5_handleVIRetraceEvent(void) {
             osDpSetStatus(DPC_CLR_FREEZE);
 
             sUnkFlag2_Saved = sUnkFlag2;
+            thread5_trace('V', 0);
             // core1_1D590_func_8025AFB8();
 
             if (sUnkFlag2_Saved & 1) {
@@ -334,6 +388,7 @@ void thread5_handleSPEvent(void) {
     struct ucode_task_data_s *active_audio_task;
     s32 temp_v1;
 
+    thread5_trace('P', 0);
     temp_v1 = sUnkFlag1;
     if (sUnkFlag1 == UNKFLAG1_TASK_YIELDED) {
         active_audio_task = sAudioTaskDataList[sActiveAudioTaskDataID];
@@ -356,6 +411,7 @@ void thread5_handleSPEvent(void) {
         osSpTaskStartGo(&sGfxTask);
         sUnkFlag1 = sUnkFlag1_Saved;
         sGfxTaskYielded = 0;
+        thread5_trace('R', 0);
         return;
     }
 
@@ -397,6 +453,7 @@ void thread5_startNextAudioTask(void) {
         sUnkFlag1_Saved = sUnkFlag1;
         sUnkFlag1 = UNKFLAG1_TASK_YIELDED;
         sUnkCounter4 = 30;
+        thread5_trace('Y', 0);
     }
 }
 

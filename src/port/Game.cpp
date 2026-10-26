@@ -239,12 +239,18 @@ bool DeliverTaskDone() {
 }
 
 extern "C" s32 thread5_isGfxIdle(void);
+extern "C" void thread5_logTrace(void);
+
+extern "C" void port_logWarn(const char* text) {
+    SPDLOG_WARN("{}", text);
+}
 
 // The game waits here, in vimgr.c, for the token the frame's last graphics task sends when it's
 // drawn. Rarely the token never comes, though everything handed over was drawn (seen on the 3DS,
 // cause not yet known), and the game would wait for good. So wait in slices, and once nothing in
 // the pipeline could still send it, carry on without it.
 extern "C" void port_waitFrameToken(OSMesgQueue* mq) {
+    thread5_trace('G', 0);
     while (OS_RecvMesgTimeout(mq, nullptr, 250) != 0) {
         if (!WindowIsRunning()) {
             return;
@@ -254,9 +260,18 @@ extern "C" void port_waitFrameToken(OSMesgQueue* mq) {
         if (rcpIdle && thread5_isGfxIdle()) {
             static int sRecoveries = 0;
             SPDLOG_WARN("The frame's swap token never came; going on without it ({} so far)", ++sRecoveries);
+            // What thread5 did leading up to it, the first few times
+            if (sRecoveries <= 3) {
+                thread5_logTrace();
+            }
+#if defined(__3DS__) && defined(LH_HALT_ON_LOST_TOKEN)
+            // Testing aid: stop here so the state can be read with a debugger
+            Fast::Show3dsFatalError("Lost frame token", "Logged to logs/Lighthouse.log. Attach the debugger now.");
+#endif
             return;
         }
     }
+    thread5_trace('g', 0);
 }
 
 extern "C" void port_noteDroppedFrameToken(void) {
@@ -268,6 +283,7 @@ extern "C" void port_noteDroppedFrameToken(void) {
 
 namespace {
 void SendTaskDone() {
+    thread5_trace('X', 0);
     sUndeliveredDp++;
     sUndeliveredSp++;
     if (!DeliverTaskDone()) {
@@ -287,6 +303,7 @@ extern "C" void port_releaseRcpTask(void) {
     }
     sTaskReleased = true;
     if (osDpGetStatus() & DPC_STATUS_FREEZE) {
+        thread5_trace('X', 1);
         sReleaseDeferred = true;
         return;
     }

@@ -1,5 +1,6 @@
 // BanjoDecomp: code_15B30.c
 #include "core1/core1.h"
+#include "port/OS/OS.h"
 #include "core2/core2.h"
 #include <ultra64.h>
 #include "functions.h"
@@ -187,6 +188,11 @@ void core1_15B30_sendMesg3ToRenderThread(void) {
 void core1_15B30_init(void) {
     sCurrentUcodeTaskDataID = 0;
     osCreateMesgQueue(&sTaskDataListLockMesgQueue, &sTaskDataListLockMesg, 1);
+    // [port] This queue is the lock on the shared task list, and the port's queues only wait when
+    // told to. Without it a second taker walked straight in: the audio thread and the game could
+    // take the same slot, and an audio task overwrote the frame's graphics task, which then never
+    // ran, and the game waited for its swap token for good.
+    OS_SetQueueBlocking(&sTaskDataListLockMesgQueue, 1);
     osSendMesgPtr(&sTaskDataListLockMesgQueue, NULL, 1);
     thread5_create();
     scissorBox_setDefault();

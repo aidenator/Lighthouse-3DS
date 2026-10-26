@@ -101,6 +101,12 @@ void port_waitFrameToken(OSMesgQueue* mq);
 // The swap token couldn't be sent because the game hadn't taken the last one
 void port_noteDroppedFrameToken(void);
 
+// A warning in the game's log, from C code
+void port_logWarn(const char* text);
+
+// Adds to thread5's swap-token trace (graphics_thread.c); for diagnosing lost tokens
+void thread5_trace(char kind, s32 extra);
+
 // VI swap timing, for starting a frame's render on the retrace its swap latches on.
 long long OS_SteadyNs(void);
 long long OS_ViLastSwapNs(void);

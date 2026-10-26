@@ -173,6 +173,12 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Nintendo3DS")
     if(LH_3DS_OLD_INTERPOLATION)
         add_compile_definitions(LH_3DS_OLD_INTERPOLATION)
     endif()
+    # Testing aid: stop with an error screen when the game loses a frame's swap token, instead of
+    # carrying on, so the state can be read with Rosalina's debugger
+    option(LH_HALT_ON_LOST_TOKEN "Stop when a frame's swap token is lost" OFF)
+    if(LH_HALT_ON_LOST_TOKEN)
+        add_compile_definitions(LH_HALT_ON_LOST_TOKEN)
+    endif()
     # newlib on ARM makes int32_t a long, which clashes with the decomp's s32 (an int). Both are
     # 32 bits, so redefine the 32-bit stdint types as int/unsigned. Dependencies must be built with
     # the same flags (see tools/docker/3ds.Dockerfile).
