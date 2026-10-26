@@ -29,6 +29,10 @@ the root of the SD card). The card should look like this:
 To copy without taking the SD card out, run ftpd on the 3DS and use any FTP
 client.
 
+To start it from the HOME Menu instead of the Homebrew Launcher, also install
+Lighthouse.cia (in this zip) with FBI. It uses the same files in
+3ds/lighthouse/, including your saves. On an Old 3DS it also gets more memory.
+
 
 2. First start
 --------------

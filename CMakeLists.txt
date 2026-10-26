@@ -642,6 +642,37 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Nintendo3DS")
         ICON "${CMAKE_SOURCE_DIR}/res/icon_3ds.png"
     )
     ctr_create_3dsx(${PROJECT_NAME} SMDH ${PROJECT_NAME}.smdh)
+
+    # A .cia as well, to install to the HOME Menu, when makerom and bannertool are there (the
+    # lighthouse-3ds Docker image has them). Its settings, such as the Old 3DS memory mode, are in
+    # tools/3ds/cia/Lighthouse.rsf.
+    find_program(LH_MAKEROM makerom)
+    find_program(LH_BANNERTOOL bannertool)
+    if(LH_MAKEROM AND LH_BANNERTOOL)
+        set(_lh_cia_dir ${CMAKE_CURRENT_SOURCE_DIR}/tools/3ds/cia)
+        add_custom_command(
+            OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/banner.bnr
+            COMMAND ${LH_BANNERTOOL} makebanner -i ${_lh_cia_dir}/banner.png -a ${_lh_cia_dir}/banner.wav
+                    -o ${CMAKE_CURRENT_BINARY_DIR}/banner.bnr
+            DEPENDS ${_lh_cia_dir}/banner.png ${_lh_cia_dir}/banner.wav
+        )
+        # The title's version, which the HOME Menu compares when installing an update
+        string(REPLACE "." ";" _lh_cia_version "${LH_3DS_VERSION}")
+        list(GET _lh_cia_version 0 _lh_cia_major)
+        list(GET _lh_cia_version 1 _lh_cia_minor)
+        add_custom_command(
+            OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.cia
+            COMMAND ${LH_MAKEROM} -f cia -o ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.cia -target t -exefslogo
+                    -elf $<TARGET_FILE:${PROJECT_NAME}> -rsf ${_lh_cia_dir}/Lighthouse.rsf
+                    -icon ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.smdh -banner ${CMAKE_CURRENT_BINARY_DIR}/banner.bnr
+                    -major ${_lh_cia_major} -minor ${_lh_cia_minor} -micro 0
+            DEPENDS ${PROJECT_NAME} ${_lh_cia_dir}/Lighthouse.rsf ${CMAKE_CURRENT_BINARY_DIR}/banner.bnr
+                    ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.smdh
+        )
+        add_custom_target(${PROJECT_NAME}_cia ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.cia)
+    else()
+        message(STATUS "makerom or bannertool not found: no .cia")
+    endif()
 endif()
 
 ################################################################################

@@ -75,4 +75,20 @@ RUN curl -fsSL https://github.com/leethomason/tinyxml2/archive/refs/tags/${TINYX
     && dkp-3ds-install tinyxml2-${TINYXML2_VERSION} -Dtinyxml2_BUILD_TESTING=OFF \
     && rm -rf tinyxml2-${TINYXML2_VERSION}
 
+# Tools to package a .cia: makerom builds it, bannertool makes the HOME Menu banner. Built from
+# source, since their released Linux binaries need a newer glibc than this image has. Host tools,
+# so built without the 3DS flags above.
+ARG MAKEROM_VERSION=0.19.0
+ARG BANNERTOOL_VERSION=1.2.3
+RUN curl -fsSL https://github.com/3DSGuy/Project_CTR/archive/refs/tags/makerom-v${MAKEROM_VERSION}.tar.gz | tar xz \
+    && cd Project_CTR-makerom-v${MAKEROM_VERSION}/makerom \
+    && CFLAGS= CXXFLAGS= make deps && CFLAGS= CXXFLAGS= make -j$(nproc) \
+    && install -m 755 bin/makerom /usr/local/bin/makerom \
+    && cd /deps && rm -rf Project_CTR-makerom-v${MAKEROM_VERSION}
+RUN curl -fsSL https://github.com/carstene1ns/3ds-bannertool/releases/download/${BANNERTOOL_VERSION}/bannertool-${BANNERTOOL_VERSION}.tar.gz | tar xz \
+    && CFLAGS= CXXFLAGS= cmake -S bannertool-${BANNERTOOL_VERSION} -B bannertool-build -DCMAKE_BUILD_TYPE=Release \
+    && cmake --build bannertool-build -j$(nproc) \
+    && install -m 755 bannertool-build/bannertool /usr/local/bin/bannertool \
+    && rm -rf bannertool-${BANNERTOOL_VERSION} bannertool-build
+
 WORKDIR /src

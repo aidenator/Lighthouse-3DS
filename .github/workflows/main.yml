@@ -259,6 +259,8 @@ jobs:
           # Laid out like the SD card, so the zip can be extracted straight onto it
           mkdir -p lighthouse-3ds/3ds/lighthouse
           cp build-3ds/Lighthouse.3dsx lighthouse-3ds/3ds/
+          # The same app for the HOME Menu, installed with FBI; it uses the same files in 3ds/lighthouse/
+          cp build-3ds/Lighthouse.cia lighthouse-3ds/
           cp lighthouse.o2r lighthouse-3ds/3ds/lighthouse/
           # What the app needs to make bk.o2r from a ROM on first start
           mkdir -p lighthouse-3ds/3ds/lighthouse/extract
