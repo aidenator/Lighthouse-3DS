@@ -282,14 +282,20 @@ extern "C" void port_setWindowTitle(int map_id) {
 
 static int sPendingTitleMap = 0;
 
+// Kept out of the hook's lambda: a preprocessor directive inside a macro's arguments doesn't build
+// with MSVC
+static void SetSceneConvergence(int nextMap) {
+#ifdef __3DS__
+    // The file select looks best in 3D with the scene nearer the screen's depth
+    Fast::Set3dsSceneConvergence(nextMap == MAP_91_FILE_SELECT ? 200.0f : 0.0f);
+#endif
+}
+
 void RegisterGameStatus_Init() {
     COND_HOOK(OnMapLoad, EVENT_PRIORITY_LOW, true, [](IEvent* event) {
         OnMapLoad* ev = (OnMapLoad*)event;
         sPendingTitleMap = ev->nextMap;
-#ifdef __3DS__
-        // The file select looks best in 3D with the scene nearer the screen's depth
-        Fast::Set3dsSceneConvergence(ev->nextMap == MAP_91_FILE_SELECT ? 200.0f : 0.0f);
-#endif
+        SetSceneConvergence(ev->nextMap);
         port_runOnRenderThread([](void*) { port_setWindowTitle(sPendingTitleMap); }, nullptr);
     });
 }
