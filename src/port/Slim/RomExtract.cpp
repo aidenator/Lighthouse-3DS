@@ -4,6 +4,8 @@
 
 #include <algorithm>
 #include <atomic>
+#include <malloc.h>
+#include <new>
 #include <chrono>
 #include <cstdio>
 #include <filesystem>
@@ -114,8 +116,22 @@ static void ShowProgress(float fraction) {
 #endif
 }
 
-RomExtractResult Slim_ExtractRomArchive(const std::string& folder, const std::string& archiveName,
-                                        const std::vector<std::string>& romFolders, bool replacing) {
+#ifdef __3DS__
+extern "C" u32 __ctru_heap_size;
+
+// Heap still free: the app's whole heap is set aside at start, so it's that less what is in use
+static size_t FreeHeap() {
+    const size_t used = mallinfo().uordblks;
+    return __ctru_heap_size > used ? __ctru_heap_size - used : 0;
+}
+#endif
+
+// Extraction peaks at about 48 MB (the 16 MB ROM, and Torch's work on one asset at a time), measured
+// on a New 3DS; the rest is a margin for a heap that isn't one free block
+static constexpr size_t kHeapNeeded = 56 * 1024 * 1024;
+
+static RomExtractResult ExtractRomArchive(const std::string& folder, const std::string& archiveName,
+                                          const std::vector<std::string>& romFolders, bool replacing) {
     RomExtractResult result;
     sReplacing = replacing;
     std::vector<fs::path> folders;
@@ -147,6 +163,19 @@ RomExtractResult Slim_ExtractRomArchive(const std::string& folder, const std::st
         return fail("config.yml can't be read", std::string(e.what()) + "\nCopy the extract folder from this "
                     "release's download again.");
     }
+
+#ifdef __3DS__
+    // An Old 3DS has about half the memory: say so, rather than run out partway
+    const size_t freeHeap = FreeHeap();
+    SPDLOG_INFO("{} KB of heap free for making {}", freeHeap / 1024, archiveName);
+    if (freeHeap < kHeapNeeded) {
+        return fail("Not enough memory to make " + archiveName,
+                    "This console has " + std::to_string(freeHeap / (1024 * 1024)) + " MB free and needs about " +
+                        std::to_string(kHeapNeeded / (1024 * 1024)) + " MB, which an Old 3DS doesn't have. Make " +
+                        archiveName + " on a New 3DS, or with a PC build of Lighthouse 3DS, and copy it to\n" +
+                        folder + "/");
+    }
+#endif
 
     // The first ROM that is one of the supported dumps; the folders may hold other games too
     ShowProgress(0.0f);
@@ -246,6 +275,22 @@ RomExtractResult Slim_ExtractRomArchive(const std::string& folder, const std::st
                 std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count());
     ShowProgress(1.0f);
     return result;
+}
+
+RomExtractResult Slim_ExtractRomArchive(const std::string& folder, const std::string& archiveName,
+                                        const std::vector<std::string>& romFolders, bool replacing) {
+    // Out of memory anywhere (reading the ROM, say) must end in an error screen, not a crash
+    try {
+        return ExtractRomArchive(folder, archiveName, romFolders, replacing);
+    } catch (const std::bad_alloc&) {
+        // Torch's own run has its own handler, so this is from before it starts or after it ends
+        RomExtractResult result;
+        result.foundRom = true;
+        result.errorTitle = "Not enough memory to make " + archiveName;
+        result.errorMessage = "Make " + archiveName + " on a New 3DS, or with a PC build of Lighthouse 3DS, and "
+                              "copy it to\n" + folder + "/";
+        return result;
+    }
 }
 
 #endif
