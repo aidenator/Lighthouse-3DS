@@ -1,8 +1,9 @@
 name: Release 3DS
 
 # A 3DS release: push a tag named after the version in CMakeLists.txt's LH_3DS_VERSION, such as
-# 3ds-v1.0. Only the 3DS zip is published: the app makes bk.o2r from the player's ROM. The PC
-# builds can still be made by running GenerateBuilds by hand.
+# 3ds-v1.0. The app makes bk.o2r from the player's ROM; the PC builds go in too while an Old 3DS
+# can't (not enough memory), so its owners can make bk.o2r on a computer. Set skip-pc-builds to
+# drop them; the packaging below follows whatever was built.
 on:
   push:
     tags:
@@ -12,7 +13,7 @@ jobs:
   build:
     uses: ./.github/workflows/main.yml
     with:
-      skip-pc-builds: true
+      skip-pc-builds: false
 
   release:
     name: Draft 3DS release
@@ -40,6 +41,13 @@ jobs:
       - name: Package and write notes
         run: |
           (cd artifacts/Lighthouse-3ds && zip -qr "../../Lighthouse-3DS-v$VERSION.zip" .)
+          PC_BUILDS=false
+          if [ -d artifacts/Lighthouse-windows ]; then
+            PC_BUILDS=true
+            (cd artifacts/Lighthouse-windows && zip -qr ../../Lighthouse-PC-Win64.zip .)
+            (cd artifacts/Lighthouse-mac && zip -qr ../../Lighthouse-PC-Mac.zip .)
+            cp artifacts/Lighthouse-linux/lighthouse.appimage Lighthouse-PC-Linux.appimage
+          fi
           cat > notes.md <<EOF
           Banjo-Kazooie for the New Nintendo 3DS, as a homebrew app. No game data is included: it is made
           once from your own ROM (US v1.0, US v1.1, PAL or Japanese).
@@ -54,9 +62,25 @@ jobs:
           Full instructions and controls are in \`README-3DS.txt\` inside the zip and in
           [docs/3DS.md](https://github.com/${{ github.repository }}/blob/$TAG/docs/3DS.md).
 
-          ## Changes
+          EOF
+          if [ "$PC_BUILDS" = true ]; then
+            cat >> notes.md <<EOF
+          **An Old 3DS can't make \`bk.o2r\` itself** (not enough memory). Make it on a computer with the PC
+          build below instead: run it, choose your ROM, and put the \`bk.o2r\` it writes in \`3ds/lighthouse/\`.
+          Use the PC build from this release; \`README-3DS.txt\` says where each one writes \`bk.o2r\`.
+
+          ## Downloads
+
+          | File | What it is |
+          | --- | --- |
+          | \`Lighthouse-3DS-v$VERSION.zip\` | The 3DS app, for the SD card (\`.3dsx\`, and a \`.cia\` for the HOME Menu) |
+          | \`Lighthouse-PC-Win64.zip\` | PC build for Windows, to make \`bk.o2r\` on a computer |
+          | \`Lighthouse-PC-Mac.zip\` | PC build for macOS, to make \`bk.o2r\` on a computer |
+          | \`Lighthouse-PC-Linux.appimage\` | PC build for Linux, to make \`bk.o2r\` on a computer |
 
           EOF
+          fi
+          printf '## Changes\n\n' >> notes.md
           # The notes for this release, written ahead in the repository
           if [ -f "docs/release-notes/$TAG.md" ]; then
             cat "docs/release-notes/$TAG.md" >> notes.md
@@ -70,5 +94,7 @@ jobs:
           body_path: notes.md
           files: |
             Lighthouse-3DS-v*.zip
+            Lighthouse-PC-*.zip
+            Lighthouse-PC-Linux.appimage
           draft: true
           prerelease: ${{ contains(github.ref_name, '-rc') || contains(github.ref_name, '-beta') }}

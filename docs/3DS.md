@@ -21,14 +21,21 @@ and a Banjo-Kazooie ROM (see [Quick Start](../README.md#quick-start) for the sup
    ROM it finds (a file named `baserom` first in each folder); other games there are skipped.
 3. Start **Banjo-Kazooie** from the Homebrew Launcher. On the first start the app makes `bk.o2r`
    from the ROM, in about a minute and a half on a New 3DS, with a progress bar on the bottom
-   screen. Later starts use that `bk.o2r`, so the game no longer needs the ROM.
+   screen. Later starts use that `bk.o2r`. Leave the ROM on the card so that a release whose
+   `bk.o2r` differs can make the new one by itself; without it, the app asks for the ROM then.
+4. Optionally, install `Lighthouse.cia` from the zip with FBI, to start the game from the HOME Menu.
+   It uses the same files and saves as the `.3dsx`. On an Old 3DS it runs in the 80 MB memory mode
+   (`tools/3ds/cia/Lighthouse.rsf`).
 
-Releases no longer include PC builds. A `bk.o2r` made by a PC build of this branch, built from
-source as below, still works: put it in `3ds/lighthouse/` instead of the ROM.
+An Old 3DS can't make `bk.o2r` itself: it needs about 56 MB of heap free, and an Old 3DS has 32 to
+48 MB. So releases include PC builds for now: run the one from the same release, choose your ROM,
+and put the `bk.o2r` it writes in `3ds/lighthouse/` instead of the ROM (`README-3DS.txt` says where
+each one writes it).
 
 `bk.o2r` files made by any other Lighthouse version, including official HarbourMasters releases, do
-not work with the 3DS app. A `bk.o2r` made for 3DS v1.0 or v1.1 works with either; each release's
-notes say when it has to be made again. The one the 3DS makes is stored uncompressed, so it is about
+not work with the 3DS app. The app checks that `bk.o2r` matches it, and
+remakes it from the ROM when a release changes what goes into it (v1.2 does, after v1.0 and
+v1.1). The one the 3DS makes is stored uncompressed, so it is about
 47 MB instead of 26 MB: compressing would add almost a minute on the 3DS's CPU.
 
 ## Building from source
@@ -164,16 +171,16 @@ half the HUD's depth (left out, right in). The values show on the bottom screen 
 ### Making a release
 
 Pushing a tag named `3ds-v` plus the version in `LH_3DS_VERSION` (`CMakeLists.txt`), such as
-`3ds-v1.0`, runs `.github/workflows/release-3ds.yml`. It builds `lighthouse.o2r` and the 3DS app
-from that commit (not the PC builds, which GenerateBuilds still makes when run by hand from the
-Actions tab) and creates a draft GitHub release with install notes. Its "Changes" section comes
-from `docs/release-notes/<tag>.md`, such as `docs/release-notes/3ds-v1.1.md`, if that file exists;
+`3ds-v1.0`, runs `.github/workflows/release-3ds.yml`. It builds `lighthouse.o2r`, the 3DS app and
+the PC builds from that commit (set `skip-pc-builds` in the workflow to leave the PC builds out, once
+an Old 3DS can make `bk.o2r` itself) and creates a draft GitHub release with install notes. Its "Changes" section comes
+from `docs/release-notes/<tag>.md`, such as `docs/release-notes/3ds-v1.2.md`, if that file exists;
 write it before tagging, including whether `bk.o2r` has to be made again. The release stays a
 draft until it is published by hand. The tag must match `LH_3DS_VERSION`, or the release job fails.
 
 ```bash
-git tag 3ds-v1.1
-git push origin 3ds-v1.1
+git tag 3ds-v1.2
+git push origin 3ds-v1.2
 ```
 
 The zip's `README-3DS.txt` is `tools/3ds/README.txt`.

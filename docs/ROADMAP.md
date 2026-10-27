@@ -3,9 +3,7 @@
 What's planned for the 3DS port after v1.0. Plans change; this is a list of intentions, not
 promises.
 
-## Next release (v1.2)
-
-### Done so far
+## v1.2
 
 * **`bk.o2r` made on the 3DS.** Put the ROM in `sdmc:/3ds/lighthouse/` and the app makes `bk.o2r`
   on the first start, in about 80 seconds on a New 3DS, with a progress bar; a PC is no longer
@@ -14,13 +12,26 @@ promises.
   50 MB, with the same output. Writes go to the SD card in whole aligned 1 MB blocks: unaligned
   writes ran at 0.1 MB/s. The app looks for the ROM in `3ds/lighthouse/`, next to the `.3dsx`
   and at the SD card's root, skips other games, and never keeps an archive with assets missing.
-* **Releases are just the 3DS zip.** No PC builds to download; GenerateBuilds still makes them
-  when run by hand.
+* **The 3DS zip is all a New 3DS needs.** The PC builds stay in the release for the Old 3DS, which
+  can't make `bk.o2r` itself yet; the release workflow's `skip-pc-builds` drops them once it can.
 * **3D on the file select** uses its own convergence (200), which suits that scene better.
+* **`bk.o2r` updates itself.** The build stamps a hash of what makes `bk.o2r` (Torch's commit, the
+  asset lists, `config.yml`) into the archives the app makes, and the app remakes an archive with
+  another stamp from the ROM, replacing the old one only once the new one is complete. A version
+  bump alone no longer asks for a new `bk.o2r`.
+* **A `.cia`** to install to the HOME Menu, with a banner and icon, built alongside the `.3dsx`
+  (`tools/3ds/cia/`). It asks for the 80 MB memory mode on an Old 3DS.
+* **Lighthouse 1.2.0**: upstream's changes since this port branched, merged into this branch, its
+  libultraship and its Torch.
+* **Freezes fixed.** The lock on the task list the game and audio threads share never locked, so an
+  audio task could overwrite the frame's graphics task, and the game waited for good. Found with a
+  trace of the threads involved (`LH_HALT_ON_LOST_TOKEN`). Separately, the 3DS can miss a
+  condition variable's wake-up, which once stopped the renderer's handoff after hours, so waits for
+  a single reply check again in slices there (`port/OS/Wait.h`).
+* **SDL's audio thread** starts on core 0 when the system won't give it core 1, instead of failing
+  with "Couldn't create audio thread".
 
-## Next release (v1.1)
-
-### Done so far
+## v1.1 (released 2026-10-24)
 
 * **60 frames per second on the New 3DS.** Frame interpolation is back on, and Freezeezy Peak, the
   heaviest level, holds about 60. The renderer records each frame and a second thread on core 2
@@ -70,19 +81,17 @@ share core 0 at the same priority (a 3DS thread does not give way to another of 
 until it blocks), and the audio thread's share of core 1, where the system's graphics service
 also runs.
 
+Making `bk.o2r` needs about 56 MB of heap free, and an Old 3DS has 32 MB (the `.cia`, 80 MB mode)
+to 48 MB. The plan: when `bk.o2r` has to be made, the app restarts itself into a mode that gives
+nearly all its memory to the heap (graphics memory is fixed when a program starts), makes
+`bk.o2r`, and restarts into the game.
+
+The 98 ms waits may be worth another look now that the 3DS's missed condition-variable wake-ups
+are known (v1.2): the waits that used to sleep until woken now check again in slices.
+
 To test without an Old 3DS, configure with `-DLH_3DS_SIMULATE_OLD=ON` (and
 `-DLH_3DS_OLD_INTERPOLATION=ON` to also draw in-between frames). The log's `game:` line shows the
 game's own update rate.
-
-### A CIA build
-
-Build a `.cia` alongside the `.3dsx`, so the game can be installed and started from the HOME Menu
-as well as the Homebrew Launcher.
-
-* This matters most on an Old 3DS: a CIA declares its own memory and CPU needs, so it can ask for
-  the larger memory mode and more of core 1's time, instead of making do with what the Homebrew
-  Launcher leaves over.
-* Needs a banner, an icon and a title ID, and `makerom` in the build and in CI.
 
 ### A better bottom screen
 
@@ -108,10 +117,6 @@ has to fit beside 60 fps.
 
 Bring back the PC version's features where they fit on the 3DS, for example:
 
-* **Upstream changes first.** Lighthouse has moved on since this port branched (19 commits by
-  2026-10-25, including randomizer fixes and a version bump to 1.2.0, which means remaking
-  `bk.o2r`). Merge them into this branch, its libultraship and its Torch, before the features
-  below.
 * **The randomizer.**
 * **Mods**, in three kinds:
   * Asset mods: `.o2r` files that replace models, textures or sounds, dropped in

@@ -161,7 +161,7 @@ endif()
 set(VERSION us)
 if(CMAKE_SYSTEM_NAME STREQUAL "Nintendo3DS")
     # Release version of the 3DS port, shown on the bottom screen and in the Homebrew Launcher
-    set(LH_3DS_VERSION "1.1")
+    set(LH_3DS_VERSION "1.2")
     add_compile_definitions(LH_3DS_VERSION="${LH_3DS_VERSION}")
     # Testing aids for the Old 3DS: run a New 3DS as one (268 MHz, no L2 cache, cores 0 and 1 only),
     # and draw in-between frames on an Old 3DS too

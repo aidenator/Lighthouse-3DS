@@ -36,11 +36,14 @@ a Banjo-Kazooie ROM.
    ```
 2. **Play.** Start **Banjo-Kazooie** from the Homebrew Launcher. On the first start the app makes
    `bk.o2r`, the game's graphics, sound and text, from your ROM: about a minute and a half, with a
-   progress bar on the bottom screen. Later starts use that `bk.o2r`, so the game no longer needs the
-   ROM. START + SELECT quits.
+   progress bar on the bottom screen. Later starts use that `bk.o2r`; leave the ROM on the card so a
+   release that needs a new one can make it by itself. START + SELECT quits.
+3. **Optional: install to the HOME Menu.** Install `Lighthouse.cia`, also in the zip, with FBI. It
+   starts from the HOME Menu and uses the same files and saves.
 
-A `bk.o2r` made by a PC build of Lighthouse from this repository (see [docs/3DS.md](docs/3DS.md))
-works too. One made by any other Lighthouse version will not.
+An Old 3DS can't make `bk.o2r` itself (not enough memory). Make it on a computer with the PC build
+from the same release, and put it in `3ds/lighthouse/` instead of the ROM. A `bk.o2r` made by any
+other Lighthouse version will not work.
 
 `README-3DS.txt` in the zip has the full steps. Your ROM must be one of these
 (check with any SHA-1 tool):
