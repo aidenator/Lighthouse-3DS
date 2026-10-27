@@ -1,3 +1,4 @@
+#include "port/OS/Wait.h"
 #include "Engine.h"
 #include <atomic>
 #include <clocale>
@@ -408,13 +409,13 @@ extern "C" void port_runOnRenderThread(void (*fn)(void*), void* arg) {
     if (sShutdownRequested.load(std::memory_order_acquire)) {
         return;
     }
-    sSvcCv.wait(lock, done);
+    port_waitUntil(sSvcCv, lock, done);
     if (sShutdownRequested.load(std::memory_order_acquire)) {
         return;
     }
     sSvcFn = fn;
     sSvcArg = arg;
-    sSvcCv.wait(lock, done);
+    port_waitUntil(sSvcCv, lock, done);
 }
 
 extern "C" void port_serviceRenderRequests(void) {

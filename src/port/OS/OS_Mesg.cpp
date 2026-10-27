@@ -45,6 +45,17 @@ QueueSync& SyncFor(OSMesgQueue* mq) {
     return sQueueSync[mq];
 }
 
+// One wait for a queue's state to change; callers check again and wait more. On the 3DS a wake-up
+// can go missing (seen in the renderer's handoff, after hours), and a thread waiting for a single
+// reply would then sleep for good, so wait in slices there.
+void WaitSlice(std::condition_variable& cv, std::unique_lock<std::mutex>& lock) {
+#ifdef __3DS__
+    cv.wait_for(lock, std::chrono::milliseconds(100));
+#else
+    cv.wait(lock);
+#endif
+}
+
 // Blocked-wait registry for the watchdog. Slots are atomics so a stall dump
 // can read them without taking sMesgMutex (which a deadlocked thread may
 // implicate); marking and clearing happen under sMesgMutex on the wait path.
@@ -112,7 +123,7 @@ int32_t osSendMesg(OSMesgQueue* mq, OSMesg msg, int32_t flag) {
         }
         {
             const auto waitStart = std::chrono::steady_clock::now();
-            sync.notFull.wait(lock);
+            WaitSlice(sync.notFull, lock);
             tBlockedMs += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - waitStart).count();
         }
     }
@@ -140,7 +151,7 @@ int32_t osJamMesg(OSMesgQueue* mq, OSMesg msg, int32_t flag) {
         }
         {
             const auto waitStart = std::chrono::steady_clock::now();
-            sync.notFull.wait(lock);
+            WaitSlice(sync.notFull, lock);
             tBlockedMs += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - waitStart).count();
         }
     }
@@ -166,7 +177,7 @@ int32_t osRecvMesg(OSMesgQueue* mq, OSMesg* msg, int32_t flag) {
         }
         {
             const auto waitStart = std::chrono::steady_clock::now();
-            sync.notEmpty.wait(lock);
+            WaitSlice(sync.notEmpty, lock);
             tBlockedMs += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - waitStart).count();
         }
     }

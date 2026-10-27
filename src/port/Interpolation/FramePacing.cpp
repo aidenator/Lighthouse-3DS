@@ -1,3 +1,4 @@
+#include "port/OS/Wait.h"
 #include "port/Engine.h"
 
 #include <algorithm>
@@ -160,7 +161,7 @@ public:
 
     void Wait() {
         std::unique_lock<std::mutex> lock(mMutex);
-        mCv.wait(lock, [this] { return !mBusy; });
+        port_waitUntil(mCv, lock, [this] { return !mBusy; });
     }
 
 private:
@@ -181,7 +182,7 @@ private:
     void Run() {
         std::unique_lock<std::mutex> lock(mMutex);
         for (;;) {
-            mCv.wait(lock, [this] { return mOut != nullptr; });
+            port_waitUntil(mCv, lock, [this] { return mOut != nullptr; });
             auto* out = mOut;
             const float t = mT;
             mOut = nullptr;

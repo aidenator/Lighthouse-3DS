@@ -51,7 +51,12 @@ void Worker() {
             }
         }
         if (key == nullptr) {
+#ifdef __3DS__
+            // The loop checks again anyway, so a missed wake-up (see Wait.h) only delays it
+            sCv.wait_for(lock, std::chrono::milliseconds(50));
+#else
             sCv.wait(lock);
+#endif
             continue;
         }
         if (sCv.wait_until(lock, deadline) != std::cv_status::timeout) {
