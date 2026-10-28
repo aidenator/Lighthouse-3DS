@@ -643,6 +643,19 @@ int SDL_main(int argc, char* argv[]) {
         // Pump events every iteration: a task-starved pass must not starve
         // input and window messages.
         Ship::Context::GetRawInstance()->GetWindow()->HandleEvents();
+#ifdef __3DS__
+        // Closed from the HOME Menu while suspended: the normal shutdown would wait for good on the
+        // GPU and sound, which the HOME Menu has, so keep the settings and the log and end here.
+        // In-game saves are already written when the player saves.
+        if (Fast::Is3dsSystemClose()) {
+            SPDLOG_INFO("Closed from the HOME Menu");
+            Ship::Context::GetRawInstance()->GetConfig()->Save();
+            // The log is written by its own thread: ask for a flush and give it a moment
+            Ship::Context::GetRawInstance()->GetLogger()->flush();
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            Fast::Exit3dsForSystemClose();
+        }
+#endif
         OS_SiService();
         if (IsInlineModExtractionBusy()) {
             GameEngine::Instance->RenderGuiFrame();

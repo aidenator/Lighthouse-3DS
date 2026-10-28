@@ -3,6 +3,15 @@
 What's planned for the 3DS port after v1.0. Plans change; this is a list of intentions, not
 promises.
 
+## Next release (v1.3)
+
+### Done so far
+
+* **Closing the game from the HOME Menu works.** Opening another app while the game was suspended
+  hung on "Closing suspended software", every time: the shutdown waited on a frame the GPU, by then
+  the HOME Menu's, would never finish. On a close from the system the app now saves its settings
+  and log and ends straight away, confirming the close the way libctru's own exit does.
+
 ## v1.2
 
 * **`bk.o2r` made on the 3DS.** Put the ROM in `sdmc:/3ds/lighthouse/` and the app makes `bk.o2r`
