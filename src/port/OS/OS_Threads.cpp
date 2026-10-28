@@ -9,6 +9,7 @@
 #include <map>
 #include <mutex>
 #include <set>
+#include <string>
 #include <spdlog/spdlog.h>
 #include <thread>
 #ifdef __3DS__
@@ -27,6 +28,7 @@ struct OsThreadState {
     void* worker3ds = nullptr; // set instead of worker when the thread runs on a core of its own
 #endif
     bool started = false;
+    bool returned = false; // under sExitMutex
 };
 
 std::mutex sTableMutex;
@@ -87,7 +89,20 @@ extern "C" void OS_JoinDecompThreads(void) {
         }
     }
     if (!allReturned) {
-        SPDLOG_WARN("{} decomp thread(s) did not reach their exit check; detaching", sLiveThreads);
+        std::string ids;
+        {
+            std::lock_guard<std::mutex> exitLock(sExitMutex);
+            for (auto& [thread, st] : sThreads) {
+                if (st.started && !st.returned) {
+                    ids += (ids.empty() ? "" : ", ") + std::to_string(st.id);
+                }
+            }
+        }
+        SPDLOG_WARN("{} decomp thread(s) did not reach their exit check (id {}); detaching", sLiveThreads, ids);
+        // The log is written on a thread of its own, and what follows the shutdown may never let it
+        // catch up: ask for the warning to be written, and give it a moment
+        spdlog::default_logger()->flush();
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 }
 
@@ -124,15 +139,18 @@ extern "C" void OS_StartThread(OSThread* thread) {
     it->second.started = true;
     void (*entry)(void*) = it->second.entry;
     void* arg = it->second.arg;
+    // The map's entries stay put, so the thread can mark its own when it returns
+    OsThreadState* state = &it->second;
     {
         std::lock_guard<std::mutex> exitLock(sExitMutex);
         sLiveThreads++;
     }
-    auto run = [entry, arg]() {
+    auto run = [entry, arg, state]() {
         entry(arg);
         {
             std::lock_guard<std::mutex> exitLock(sExitMutex);
             sLiveThreads--;
+            state->returned = true;
         }
         sExitCv.notify_all();
     };

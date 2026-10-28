@@ -483,9 +483,15 @@ void GameEngine::Destroy() {
     ResourceHelpers_ClearRefCache();
     AudioDma_Clear();
     ReleaseSoundfonts();
+#ifndef __3DS__
     if (Instance->context && Instance->context->GetResourceManager()) {
         Instance->context->GetResourceManager()->UnloadResources("*");
     }
+#else
+    // Skipped on the 3DS: the app ends right after, and the cache is freed with the resource
+    // manager anyway, in one pass. This looked up every file in every archive, one at a time, and
+    // once crashed doing so on a damaged cache entry while quitting during a cutscene.
+#endif
     Instance->context = nullptr;
     // PortEnhancements_Exit();
     for (auto ptr : MemoryPool) {
