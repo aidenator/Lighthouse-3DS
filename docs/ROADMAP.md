@@ -11,6 +11,12 @@ promises.
   hung on "Closing suspended software", every time: the shutdown waited on a frame the GPU, by then
   the HOME Menu's, would never finish. On a close from the system the app now saves its settings
   and log and ends straight away, confirming the close the way libctru's own exit does.
+* **A settings menu on the bottom screen.** The Menu button on the stats screen opens it, and the
+  game keeps running. It has the language (English (UK), French and German on a PAL ROM), the 3D
+  focus and HUD depth, and the volume, music and sound levels. A scene tuned with its own 3D focus,
+  such as the file select, starts at that value and keeps the player's change for that scene;
+  Reset 3D goes back to the tuned values. Settings are saved on leaving the menu. It replaces the
+  hidden SELECT + tap 3D control.
 
 ## v1.2
 
@@ -111,13 +117,7 @@ totals and the frame rate. Make it more useful during play, for example:
 * **An overhead map** of the current world with Banjo's position. The game has no maps of its own,
   so they would have to be drawn from each level's geometry, either ahead of time into images in
   `bk.o2r` or live as a cheap top-down render.
-* A settings menu, for options such as draw distance and controls, and the 3D's convergence and
-  HUD depth, which today are fixed (with a hidden SELECT + tap control for testing).
-* **The game's language.** A PAL ROM has English (UK), French and German, and Lighthouse can
-  switch between them, but on the 3DS only by editing `DialogLanguage` in `lighthouse.cfg.json`
-  (English (UK) `1583480766`, French `2092788901`, German `286263347`). It belongs in the settings
-  menu; until then, a quick way would be SELECT + L/R on the file select, with the language's name
-  on the bottom screen.
+* More in the settings menu, such as draw distance and controls, and the PC version's options.
 
 Drawing the bottom screen with the GPU instead of the text console costs some renderer time, so it
 has to fit beside 60 fps.

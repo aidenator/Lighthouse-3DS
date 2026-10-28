@@ -15,6 +15,7 @@
 #include "port/ShipInit.hpp"
 #ifdef __3DS__
 #include <fast/backends/gfx_3ds.h>
+#include "port/Slim/BottomMenu.h"
 #endif
 
 #ifdef _WIN32
@@ -286,8 +287,8 @@ static int sPendingTitleMap = 0;
 // with MSVC
 static void SetSceneConvergence(int nextMap) {
 #ifdef __3DS__
-    // The file select looks best in 3D with the scene nearer the screen's depth
-    Fast::Set3dsSceneConvergence(nextMap == MAP_91_FILE_SELECT ? 200.0f : 0.0f);
+    // Some scenes have a 3D focus of their own (see BottomMenu)
+    BottomMenu_SetScene(nextMap == MAP_91_FILE_SELECT ? BOTTOM_MENU_SCENE_FILE_SELECT : BOTTOM_MENU_SCENE_NONE);
 #endif
 }
 

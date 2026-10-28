@@ -27,6 +27,7 @@
 #include "Controller/ControlSchemes.h"
 #ifdef __3DS__
 #include <fast/backends/gfx_3ds.h>
+#include "port/Slim/BottomMenu.h"
 #endif
 #include "DevTools/ThreadWatchdog.h"
 #include "FrameHost.h"
@@ -631,6 +632,7 @@ int SDL_main(int argc, char* argv[]) {
     // Startup is done: the bottom screen now shows the game's stats and frame rate instead
     Fast::Set3dsLoadProgress(1.0f, "Done");
     Fast::Show3dsStatusScreen("Banjo-Kazooie", "v" LH_3DS_VERSION);
+    BottomMenu_Start();
     if (sGameThread3ds == nullptr) {
         sGameThread = std::thread(gameLoop);
     }
@@ -655,6 +657,7 @@ int SDL_main(int argc, char* argv[]) {
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
             Fast::Exit3dsForSystemClose();
         }
+        BottomMenu_Update();
 #endif
         OS_SiService();
         if (IsInlineModExtractionBusy()) {

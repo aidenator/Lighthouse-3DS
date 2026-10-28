@@ -164,9 +164,9 @@ The [Azahar](https://azahar-emu.org/) emulator also runs the app, with the `.o2r
 `sdmc/3ds/lighthouse/` folder.
 
 What made 60 fps and 3D possible, how much each change gained, and how to measure is in
-[3DS-PERFORMANCE.md](3DS-PERFORMANCE.md). To tune the 3D while testing, hold SELECT and tap the
-bottom screen: the top half moves the convergence distance (left nearer, right farther), the bottom
-half the HUD's depth (left out, right in). The values show on the bottom screen and in the log.
+[3DS-PERFORMANCE.md](3DS-PERFORMANCE.md). To tune the 3D, use the bottom screen's menu: 3D focus is
+the convergence distance, 3D HUD the HUD's depth. Each scene with a tuned value of its own is a line
+in `kScenes` in `src/port/Slim/BottomMenu.cpp`.
 
 ### Making a release
 

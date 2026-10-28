@@ -157,8 +157,8 @@ At the Freezeezy spot (about 215 draws and 1,300 triangles), with the slider all
   transition has a camera of its own and sets `G_EX_STEREO_OWN_CAMERA`, which measures its depth
   against its own convergence (150, measured). Draws into offscreen framebuffers, and copies of the
   screen drawn back, aren't shifted.
-* **Hidden tuning.** Hold SELECT and tap the bottom screen: the top half moves the convergence
-  (left nearer, right farther), the bottom half the HUD (left out, right in).
+* **Tuning.** The bottom screen's menu sets the convergence (3D focus) and the HUD's depth while
+  the game runs, so the effect shows at once.
 
 ### Bugs to avoid in 3D
 
