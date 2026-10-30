@@ -442,7 +442,7 @@ ordered_json Convert_SaveDataToJSON(SaveData* saveData, int32_t fileNum) {
     }
     ship["heardBrentildaHints"] = heardBrentildaHints;
 
-#ifndef LH_SLIM // slim builds have no randomizer, so no rando save data to write
+#if !defined(LH_SLIM) || defined(LH_RANDO) // rando save data, when the build has the randomizer
     if (saveData->shipSaveData.fileType == FILE_TYPE_SAVE_RANDO) {
         Rando::Logic::GenerateSaveData(saveData);
         shipRando["seedId"] = saveData->shipSaveData.randoSaveData.seedId;
@@ -744,7 +744,7 @@ SaveData* Convert_JSONToSaveData(int32_t fileNum) {
         }
     }
 
-#ifndef LH_SLIM // rando check names come from the randomizer's static data
+#if !defined(LH_SLIM) || defined(LH_RANDO) // rando check names come from the randomizer's static data
     if (j["ship"]["fileType"].get<int>() == FILE_TYPE_SAVE_RANDO) {
         json rando = j["ship"]["rando"];
         saveData->shipSaveData.randoSaveData.seedId = rando["seedId"];

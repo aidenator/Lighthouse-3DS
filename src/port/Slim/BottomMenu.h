@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string>
+
 // The settings menu on the 3DS's bottom screen. A [ Menu ] button on the status screen opens it;
 // the game keeps running while it's up.
 
@@ -15,3 +17,7 @@ enum BottomMenuScene { BOTTOM_MENU_SCENE_NONE = -1, BOTTOM_MENU_SCENE_FILE_SELEC
 
 // The scene now loading; from the game thread
 void BottomMenu_SetScene(int scene);
+
+// Shows text on the status screen for a few seconds, such as what a randomizer check gave; from any
+// thread
+void BottomMenu_Notify(const std::string& text);

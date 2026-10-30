@@ -17,6 +17,11 @@ promises.
   such as the file select, starts at that value and keeps the player's change for that scene;
   Reset 3D goes back to the tuned values. Settings are saved on leaving the menu. It replaces the
   hidden SELECT + tap 3D control.
+* **The randomizer.** The settings menu's Randomizer page turns it on for the next new game and
+  picks what is shuffled (Jiggies, honeycombs, Jinjos, molehills, Mumbo tokens, notes, Stop 'n'
+  Swop) and the logic. What each check gives shows on the stats screen for a few seconds. The
+  spoiler log is written to `3ds/lighthouse/randomizer/`. The PC version's check tracker isn't
+  included.
 
 ## v1.2
 
@@ -126,7 +131,7 @@ has to fit beside 60 fps.
 
 Bring back the PC version's features where they fit on the 3DS, for example:
 
-* **The randomizer.**
+* **More of the randomizer:** starting moves and items, and choosing a seed.
 * **Mods**, in three kinds:
   * Asset mods: `.o2r` files that replace models, textures or sounds, dropped in
     `3ds/lighthouse/mods/`. Slim builds don't load the `mods` folder yet.

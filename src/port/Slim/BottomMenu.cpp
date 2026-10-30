@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <chrono>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -15,6 +16,9 @@
 #include "port/Localization/Language.h"
 #include "port/ShipInit.hpp"
 #include "port/UI/cvar_prefixes.h"
+#ifdef LH_RANDO
+#include "port/Rando/StaticData/StaticData.h"
+#endif
 
 namespace {
 
@@ -58,6 +62,10 @@ constexpr int kButtonWidth = 8;
 constexpr const char* kResetLabel = " Reset 3D ";
 constexpr int kResetColumn = 1;
 constexpr int kResetRow = 28;
+// The settings page's [ Randomizer ], top left, across from [ Back ]
+constexpr int kRandoColumn = 1;
+constexpr int kRandoRow = 0;
+constexpr int kRandoWidth = 14;
 constexpr int kFirstItemRow = 5; // each item's middle row, 4 apart
 constexpr int kItemSpacing = 4;
 constexpr int kMinusColumn = 11; // the item's [-] and [+], 5 wide
@@ -79,8 +87,52 @@ const Volume kVolumes[3] = {
     { CVAR_SETTING("Volume.SFX"), 100 },
 };
 
-bool sOpen = false;
+// The randomizer's page: two columns of three-row switches, each showing its name and value
+struct Switch {
+    const char* label;
+    const char* cvar;
+    const char* off; // what values 0 and 1 are called
+    const char* on;
+};
+
+#ifdef LH_RANDO
+#define CVAR_ITEM_MESSAGES CVAR_RANDOMIZER_SETTING("RandoNotifications")
+
+const std::vector<Switch>& Switches() {
+    using Rando::StaticData::Options;
+    static const std::vector<Switch> sSwitches = {
+        { "Randomizer", CVAR_RANDOMIZER_SETTING("Enable"), "Off", "On" },
+        { "Logic", Options[RO_LOGIC].cvar, "Glitchless", "No logic" },
+        { "Item messages", CVAR_ITEM_MESSAGES, "Off", "On" },
+        { "Jiggies", Options[RO_SHUFFLE_JIGGIES].cvar, "Off", "Shuffled" },
+        { "Honeycombs", Options[RO_SHUFFLE_EMPTY_HONEYCOMBS].cvar, "Off", "Shuffled" },
+        { "Jinjos", Options[RO_SHUFFLE_JINJOS].cvar, "Off", "Shuffled" },
+        { "Molehills", Options[RO_SHUFFLE_MOLEHILLS].cvar, "Off", "Shuffled" },
+        { "Mumbo tokens", Options[RO_SHUFFLE_MUMBO_TOKENS].cvar, "Off", "Shuffled" },
+        { "Notes", Options[RO_SHUFFLE_MUSIC_NOTES].cvar, "Off", "Shuffled" },
+        { "Stop 'n' Swop", Options[RO_SHUFFLE_STOP_N_SWOP].cvar, "Off", "Hunt" },
+    };
+    return sSwitches;
+}
+#endif
+
+constexpr int kSwitchWidth = 18;
+constexpr int kSwitchColumns[2] = { 1, 21 };
+constexpr int kFirstSwitchRow = 5; // each switch's top row, 4 apart
+
+enum Page { PAGE_CLOSED, PAGE_SETTINGS, PAGE_RANDO };
+Page sPage = PAGE_CLOSED;
 bool sChanged = false;
+
+// What a randomizer check gave, shown on the status screen for a while
+std::atomic<long long> sNoteShownMs{ 0 };
+constexpr long long kNoteMs = 4000;
+
+long long NowMs() {
+    return std::chrono::duration_cast<std::chrono::milliseconds>(
+               std::chrono::steady_clock::now().time_since_epoch())
+        .count();
+}
 
 // A button: label centred on the middle of three rows
 void DrawButton(int column, int row, int width, const char* label, bool enabled = true) {
@@ -165,15 +217,71 @@ void DrawItem(int item) {
 }
 
 void DrawMenu() {
+#ifdef LH_RANDO
+    Fast::Draw3dsBottomText(18, 1, "\x1b[33;1mSettings");
+#else
     Fast::Draw3dsBottomText(1, 1, "\x1b[33;1mSettings");
+#endif
     char reset[32];
     snprintf(reset, sizeof(reset), "%s%s", kButton, kResetLabel);
     Fast::Draw3dsBottomText(kResetColumn, kResetRow, reset);
     DrawButton(kBackColumn, kBackRow, kButtonWidth, "Back");
+#ifdef LH_RANDO
+    DrawButton(kRandoColumn, kRandoRow, kRandoWidth, "Randomizer");
+#endif
     for (int item = 0; item < ITEM_COUNT; item++) {
         DrawItem(item);
     }
 }
+
+#ifdef LH_RANDO
+void DrawSwitch(int index) {
+    const Switch& entry = Switches()[index];
+    const int column = kSwitchColumns[index % 2];
+    const int row = kFirstSwitchRow + (index / 2) * 4;
+    const bool on = CVarGetInteger(entry.cvar, 0) != 0;
+    const char* value = on ? entry.on : entry.off;
+    // Green when on
+    const char* colour = on ? "\x1b[42;30m" : kButton;
+    const auto centred = [](const char* text, int width, char* out, size_t size) {
+        const int length = std::min((int)strlen(text), width);
+        const int left = (width - length) / 2;
+        snprintf(out, size, "%*s%.*s%*s", left, "", length, text, width - left - length, "");
+    };
+    char line[64];
+    char text[32];
+    centred(entry.label, kSwitchWidth, text, sizeof(text));
+    snprintf(line, sizeof(line), "%s%s", colour, text);
+    Fast::Draw3dsBottomText(column, row, line);
+    centred(value, kSwitchWidth, text, sizeof(text));
+    snprintf(line, sizeof(line), "%s%s", colour, text);
+    Fast::Draw3dsBottomText(column, row + 1, line);
+    snprintf(line, sizeof(line), "%s%*s", colour, kSwitchWidth, "");
+    Fast::Draw3dsBottomText(column, row + 2, line);
+}
+
+void DrawRandoPage() {
+    Fast::Draw3dsBottomText(1, 1, "\x1b[33;1mRandomizer");
+    Fast::Draw3dsBottomText(1, 3, "\x1b[2mFor the next new game");
+    DrawButton(kBackColumn, kBackRow, kButtonWidth, "Back");
+    for (int index = 0; index < (int)Switches().size(); index++) {
+        DrawSwitch(index);
+    }
+}
+
+// The switch at a cell, or -1
+int SwitchAt(int column, int row) {
+    if (row < kFirstSwitchRow || (row - kFirstSwitchRow) % 4 == 3) {
+        return -1;
+    }
+    const int side = column >= kSwitchColumns[1] ? 1 : 0;
+    if (column < kSwitchColumns[side] || column >= kSwitchColumns[side] + kSwitchWidth) {
+        return -1;
+    }
+    const int index = (row - kFirstSwitchRow) / 4 * 2 + side;
+    return index < (int)Switches().size() ? index : -1;
+}
+#endif
 
 // direction: -1 for [-] (or <), 1 for [+] (or >)
 void Adjust(int item, int direction) {
@@ -233,15 +341,29 @@ void Reset3D() {
     DrawItem(ITEM_HUD_DEPTH);
 }
 
+void ShowPage(Page page) {
+    // Switching pages on the game's side: clear it by going through the status screen's
+    Fast::Set3dsBottomPage(false);
+    Fast::Set3dsBottomPage(true);
+    sPage = page;
+#ifdef LH_RANDO
+    if (page == PAGE_RANDO) {
+        DrawRandoPage();
+        return;
+    }
+#endif
+    DrawMenu();
+}
+
 void Open() {
-    sOpen = true;
+    sPage = PAGE_SETTINGS;
     sChanged = false;
     Fast::Set3dsBottomPage(true);
     DrawMenu();
 }
 
 void Close() {
-    sOpen = false;
+    sPage = PAGE_CLOSED;
     // Saved once on the way out rather than on every tap: writing the settings file takes a moment
     if (sChanged) {
         Ship::Context::GetRawInstance()->GetWindow()->GetGui()->SaveConsoleVariablesNextFrame();
@@ -253,8 +375,20 @@ void Close() {
 } // namespace
 
 void BottomMenu_Start() {
+#ifdef LH_RANDO
+    // With no pop-ups on the 3DS, the bottom screen's line is the only word of what a check gave:
+    // on unless the player turned it off
+    if (CVarGet(CVAR_ITEM_MESSAGES) == nullptr) {
+        CVarSetInteger(CVAR_ITEM_MESSAGES, 1);
+    }
+#endif
     ApplyStereo();
     DrawMenuButton();
+}
+
+void BottomMenu_Notify(const std::string& text) {
+    Fast::Update3dsStatusNote(text.c_str());
+    sNoteShownMs.store(NowMs());
 }
 
 void BottomMenu_SetScene(int scene) {
@@ -264,20 +398,45 @@ void BottomMenu_SetScene(int scene) {
 
 void BottomMenu_Update() {
     // A scene with its own 3D focus came or went while the menu was up
-    if (sOpen && sScene.load() != sShownScene) {
+    if (sPage == PAGE_SETTINGS && sScene.load() != sShownScene) {
         DrawItem(ITEM_CONVERGENCE);
+    }
+    long long shownMs = sNoteShownMs.load();
+    if (shownMs != 0 && NowMs() - shownMs > kNoteMs && sNoteShownMs.compare_exchange_strong(shownMs, 0)) {
+        Fast::Update3dsStatusNote("");
     }
     int column;
     int row;
     if (!Fast::Take3dsTap(&column, &row)) {
         return;
     }
-    if (!sOpen) {
+    if (sPage == PAGE_CLOSED) {
         if (InButton(column, row, kMenuColumn, kMenuRow, kButtonWidth)) {
             Open();
         }
         return;
     }
+#ifdef LH_RANDO
+    if (sPage == PAGE_RANDO) {
+        if (InButton(column, row, kBackColumn, kBackRow, kButtonWidth)) {
+            ShowPage(PAGE_SETTINGS);
+            return;
+        }
+        const int index = SwitchAt(column, row);
+        if (index >= 0) {
+            const Switch& entry = Switches()[index];
+            CVarSetInteger(entry.cvar, CVarGetInteger(entry.cvar, 0) ? 0 : 1);
+            ShipInit::Init(entry.cvar);
+            sChanged = true;
+            DrawSwitch(index);
+        }
+        return;
+    }
+    if (column >= kRandoColumn && column < kRandoColumn + kRandoWidth && row >= kRandoRow && row <= kRandoRow + 2) {
+        ShowPage(PAGE_RANDO);
+        return;
+    }
+#endif
     if (InButton(column, row, kBackColumn, kBackRow, kButtonWidth)) {
         Close();
         return;
@@ -286,9 +445,9 @@ void BottomMenu_Update() {
         Reset3D();
         return;
     }
-    // An item's rows: its buttons' three, and the gap under them
+    // An item's rows: its buttons' three, not the gap under them
     const int item = (row - (kFirstItemRow - 1)) / kItemSpacing;
-    if (row < kFirstItemRow - 1 || item >= ITEM_COUNT) {
+    if (row < kFirstItemRow - 1 || item >= ITEM_COUNT || (row - (kFirstItemRow - 1)) % kItemSpacing == 3) {
         return;
     }
     if (column >= kMinusColumn - 1 && column <= kMinusColumn + 5) {

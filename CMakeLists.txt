@@ -209,6 +209,11 @@ if(LH_SLIM)
     set(LUS_LOG_QUEUE_SIZE 256 CACHE STRING "Async log queue length (empty keeps the default of 8192)" FORCE)
     add_compile_definitions(LH_SLIM=1)
 endif()
+# The randomizer, without its ImGui menu and check tracker, which slim builds don't draw
+option(LH_RANDO "Build the randomizer into a slim build" ${LH_SLIM_DEFAULT})
+if(LH_SLIM AND LH_RANDO)
+    add_compile_definitions(LH_RANDO=1)
+endif()
 option(USE_NETWORKING "Enable networking features" ON)
 set(SKIP_XCODE_VERSION_CHECK ON)
 
@@ -278,7 +283,12 @@ list(FILTER ALL_FILES EXCLUDE REGEX "src/unused/")
 if(LH_SLIM)
     # Features with no place on a constrained target. Headers stay on the include path;
     # remaining call sites are guarded with LH_SLIM.
-    list(FILTER ALL_FILES EXCLUDE REGEX "src/port/(Rando|Network|DevTools|Presets|Nametag|Extractor|UI|Enhancements/Trackers)/.*\\.(c|cpp)$")
+    list(FILTER ALL_FILES EXCLUDE REGEX "src/port/(Network|DevTools|Presets|Nametag|Extractor|UI|Enhancements/Trackers)/.*\\.(c|cpp)$")
+    if(LH_RANDO)
+        list(FILTER ALL_FILES EXCLUDE REGEX "src/port/Rando/(LighthouseMenuRando|CheckTracker/.*|Logic/Metrics)\\.cpp$")
+    else()
+        list(FILTER ALL_FILES EXCLUDE REGEX "src/port/Rando/.*\\.(c|cpp)$")
+    endif()
     list(FILTER ALL_FILES EXCLUDE REGEX "src/port/(FilePicker|Controller/Mapper|Enhancements/Cosmetics/CosmeticsEditor)\\.cpp$")
     # Bundle drop physics live with the randomizer but note retention uses them too
     list(APPEND ALL_FILES "src/port/Rando/CustomObject/CustomObjectSettings.cpp")

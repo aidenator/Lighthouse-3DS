@@ -17,9 +17,16 @@
 #include "port/Nametag/Nametag.h"
 #include "port/Network/Anchor/FightSync.h"
 #include "port/Rando/Rando.h"
+#ifdef LH_RANDO
+#include "port/Rando/CheckTracker/CheckTracker.h"
+#include "port/Rando/Logic/Logic.h"
+#endif
 #include "port/UI/LighthouseGui.hpp"
 #include "port/UI/LighthouseModMenuWindow.h"
 #include "port/UI/Notification.h"
+#ifdef __3DS__
+#include "port/Slim/BottomMenu.h"
+#endif
 #include "port/Slim/RomExtract.h"
 
 #ifdef __3DS__
@@ -57,7 +64,17 @@ size_t PopupsQueued() {
 
 namespace Notification {
 void Emit(Options notification) {
-    SPDLOG_INFO("[Notification] {}{}{}", notification.prefix, notification.message, notification.suffix);
+    // The parts as one line, a space between those there are
+    std::string text;
+    for (const std::string* part : { &notification.prefix, &notification.message, &notification.suffix }) {
+        if (!part->empty()) {
+            text += (text.empty() ? "" : " ") + *part;
+        }
+    }
+    SPDLOG_INFO("[Notification] {}", text);
+#ifdef __3DS__
+    BottomMenu_Notify(text);
+#endif
 }
 } // namespace Notification
 
@@ -98,6 +115,7 @@ void Lighthouse::PickFile(Ship::FileBrowserRequest request,
     onResult(std::nullopt); // no file browser: report a cancelled pick
 }
 
+#ifndef LH_RANDO
 // Randomizer: only the active-file tracking survives, since retention enhancements read it
 
 int16_t selectedFileNum = DEFAULT_FILE_NUM;
@@ -107,6 +125,21 @@ void Rando::Init() {
                       [](IEvent* event) { selectedFileNum = ((OnGameLoad*)event)->fileNum; });
     REGISTER_LISTENER(OnLoadFileSelect, EVENT_PRIORITY_NORMAL, [](IEvent* event) { selectedFileNum = DEFAULT_FILE_NUM; });
 }
+#else
+// Randomizer: the check tracker and seed metrics are ImGui windows, which slim builds don't draw.
+// The logic still keeps what is reachable in the tracker's tables while it places items.
+
+Rando::StaticData::RandoLogicData reachableRegions[RR_MAX];
+Rando::StaticData::RandoLogicData reachableEvents[RA_MAX];
+Rando::StaticData::RandoLogicData reachableChecks[RC_MAX];
+
+void Rando::CheckTracker::Init() {
+}
+
+void RefreshMetrics(std::string text) {
+    SPDLOG_INFO("[Rando] {}", text);
+}
+#endif
 
 // Nametags only label remote players
 
