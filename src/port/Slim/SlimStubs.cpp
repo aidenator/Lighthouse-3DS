@@ -399,6 +399,7 @@ void Slim_CheckRomArchive(const std::shared_ptr<Ship::Archive>& archive, const s
 }
 
 void GameEngine::RunExtract(int argc, char* argv[]) {
+    StartLogging();
     const std::string folder = Ship::Context::GetAppBundlePath();
     if (!portArchiveVersionMatch) {
         FatalSetupError("lighthouse.o2r is missing", "Copy lighthouse.o2r from this release's download to\n" +
@@ -461,4 +462,12 @@ void GameEngine::RunExtract(int argc, char* argv[]) {
                         "release, then copy it to\n" + folder + "/");
 #endif
     }
+#if defined(LH_ROM_EXTRACT) && defined(__3DS__)
+    // Too little linear heap to play: start again with the usual split
+    if (Slim_InExtractMode()) {
+        SPDLOG_INFO("Restarting to play");
+        Fast::Set3dsLoadProgress(1.0f, "Restarting");
+        Fast::Restart3dsApp();
+    }
+#endif
 }

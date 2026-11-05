@@ -30,8 +30,8 @@ AccessControlInfo:
     - DirectSdmc
     - DirectSdmcWrite
   MemoryType              : Application
-  # Old 3DS: 80 MB instead of 64, so bk.o2r can be made on the console (it needs about 56 MB of
-  # heap free; 64 MB mode leaves 48). New 3DS: 124 MB, what the .3dsx gets.
+  # Old 3DS: 80 MB instead of 64, so bk.o2r can be made on the console (in extract mode, see
+  # src/port/Slim/RomExtract.cpp) and the game has room to play. New 3DS: 124 MB, what the .3dsx gets.
   SystemMode              : 80MB
   SystemModeExt           : 124MB
   # New 3DS: full clock and the L2 cache

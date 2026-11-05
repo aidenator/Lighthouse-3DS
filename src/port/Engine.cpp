@@ -300,6 +300,24 @@ static void LoadLanguagePacks() {
 void Slim_CheckRomArchive(const std::shared_ptr<Ship::Archive>& archive, const std::string& name); // Slim/SlimStubs.cpp
 #endif
 
+// Once: the slim builds' RunExtract starts it early, so making bk.o2r on the 3DS is in the log
+void GameEngine::StartLogging() {
+    if (context->GetLogger() != nullptr) {
+        return;
+    }
+#if (_DEBUG)
+    auto defaultLogLevel = spdlog::level::debug;
+#else
+    auto defaultLogLevel = spdlog::level::info;
+#endif
+    auto logLevel =
+        static_cast<spdlog::level::level_enum>(CVarGetInteger(CVAR_DEVELOPER_TOOLS("LogLevel"), defaultLogLevel));
+    context->InitLogging(logLevel, logLevel);
+    Ship::Context::GetRawInstance()->GetLogger()->set_pattern("[%H:%M:%S.%e] [%s:%#] [%l] %v");
+    SPDLOG_INFO("Starting Lighthouse version {} (Branch: {} | Commit: {})", (char*)gBuildVersion, (char*)gGitBranch,
+                (char*)gGitCommitHash);
+}
+
 void GameEngine::FinishInit() {
     const bool hosted = Lighthouse::GetFrameHost() != nullptr;
     for (const auto& archive : kRomArchives) {
@@ -331,17 +349,7 @@ void GameEngine::FinishInit() {
         ResourceHelpers_BuildOverlayRepoints();
     }
 
-#if (_DEBUG)
-    auto defaultLogLevel = spdlog::level::debug;
-#else
-    auto defaultLogLevel = spdlog::level::info;
-#endif
-    auto logLevel =
-        static_cast<spdlog::level::level_enum>(CVarGetInteger(CVAR_DEVELOPER_TOOLS("LogLevel"), defaultLogLevel));
-    context->InitLogging(logLevel, logLevel);
-    Ship::Context::GetRawInstance()->GetLogger()->set_pattern("[%H:%M:%S.%e] [%s:%#] [%l] %v");
-    SPDLOG_INFO("Starting Lighthouse version {} (Branch: {} | Commit: {})", (char*)gBuildVersion, (char*)gGitBranch,
-                (char*)gGitCommitHash);
+    StartLogging();
     Lighthouse::FlushLaunchHackLog();
 
     context->InitFileDropMgr();

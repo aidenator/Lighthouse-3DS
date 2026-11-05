@@ -19,3 +19,8 @@ struct RomExtractResult {
 // replacing: an out-of-date archive is there, which is replaced once the new one is complete.
 RomExtractResult Slim_ExtractRomArchive(const std::string& folder, const std::string& archiveName,
                                         const std::vector<std::string>& romFolders, bool replacing);
+
+#ifdef __3DS__
+// The app started with a small linear heap to make the archive, and must restart to play
+bool Slim_InExtractMode();
+#endif

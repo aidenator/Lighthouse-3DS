@@ -27,10 +27,12 @@ and a Banjo-Kazooie ROM (see [Quick Start](../README.md#quick-start) for the sup
    It uses the same files and saves as the `.3dsx`. On an Old 3DS it runs in the 80 MB memory mode
    (`tools/3ds/cia/Lighthouse.rsf`).
 
-An Old 3DS can't make `bk.o2r` itself: it needs about 56 MB of heap free, and an Old 3DS has 32 to
-48 MB. So releases include PC builds for now: run the one from the same release, choose your ROM,
-and put the `bk.o2r` it writes in `3ds/lighthouse/` instead of the ROM (`README-3DS.txt` says where
-each one writes it).
+On an Old 3DS, 3DS XL or 2DS, only the `.cia` can make `bk.o2r`: install it and start it from the
+HOME Menu for the first start. It restarts itself to make `bk.o2r` with more memory, which takes
+about three and a half minutes, then restarts into the game. The `.3dsx` has too little memory
+there and says so. The releases also include PC builds, which make `bk.o2r` on a computer: run the
+one from the same release, choose your ROM, and put the `bk.o2r` it writes in `3ds/lighthouse/`
+instead of the ROM (`README-3DS.txt` says where each one writes it).
 
 `bk.o2r` files made by any other Lighthouse version, including official HarbourMasters releases, do
 not work with the 3DS app. The app checks that `bk.o2r` matches it, and
@@ -172,8 +174,8 @@ in `kScenes` in `src/port/Slim/BottomMenu.cpp`.
 
 Pushing a tag named `3ds-v` plus the version in `LH_3DS_VERSION` (`CMakeLists.txt`), such as
 `3ds-v1.0`, runs `.github/workflows/release-3ds.yml`. It builds `lighthouse.o2r`, the 3DS app and
-the PC builds from that commit (set `skip-pc-builds` in the workflow to leave the PC builds out, once
-an Old 3DS can make `bk.o2r` itself) and creates a draft GitHub release with install notes. Its "Changes" section comes
+the PC builds from that commit (set `skip-pc-builds` in the workflow to leave the PC builds out) and
+creates a draft GitHub release with install notes. Its "Changes" section comes
 from `docs/release-notes/<tag>.md`, such as `docs/release-notes/3ds-v1.2.md`, if that file exists;
 write it before tagging, including whether `bk.o2r` has to be made again. The release stays a
 draft until it is published by hand. The tag must match `LH_3DS_VERSION`, or the release job fails.

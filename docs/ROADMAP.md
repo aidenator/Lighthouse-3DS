@@ -22,6 +22,16 @@ promises.
   Swop) and the logic. What each check gives shows on the stats screen for a few seconds. The
   spoiler log is written to `3ds/lighthouse/randomizer/`. The PC version's check tracker isn't
   included.
+* **An Old 3DS makes `bk.o2r` itself, with the `.cia`, and plays.** Tested on an original 2DS. The
+  `.cia` restarts itself in an extract mode with a 6 MB linear heap (graphics memory, which libctru
+  gives up to 32 MB of), so the normal heap has 62 MB. It makes `bk.o2r` in 199 s and restarts into
+  the game. Torch no longer copies the 16 MB ROM twice while reading its header, and sets aside the
+  archive writer's buffer at the start, before the heap is in thousands of pieces. To play, an Old
+  3DS now gets a 12 MB linear heap (the game used under 5 MB) instead of 32 MB: with libctru's
+  split the normal heap (36 MB) ran out loading Spiral Mountain. The `.3dsx` still can't make
+  `bk.o2r` on an Old 3DS (about 42 MB at most). The log now starts before `bk.o2r` is made, and an
+  asset that fails to load is logged. Torch's commit is part of the `bk.o2r` stamp, so v1.3 makes
+  `bk.o2r` again once, with the same contents; the release notes should say so.
 
 ## v1.2
 
@@ -101,10 +111,9 @@ share core 0 at the same priority (a 3DS thread does not give way to another of 
 until it blocks), and the audio thread's share of core 1, where the system's graphics service
 also runs.
 
-Making `bk.o2r` needs about 56 MB of heap free, and an Old 3DS has 32 MB (the `.cia`, 80 MB mode)
-to 48 MB. The plan: when `bk.o2r` has to be made, the app restarts itself into a mode that gives
-nearly all its memory to the heap (graphics memory is fixed when a program starts), makes
-`bk.o2r`, and restarts into the game.
+On a real Old 3DS (an original 2DS, from the `.cia`) the game is also slow; not measured yet.
+Whether the 12 MB linear heap is enough in every level, and whether the `.3dsx` plays now that it
+has 40 MB of heap instead of 24, is still to be checked.
 
 The 98 ms waits may be worth another look now that the 3DS's missed condition-variable wake-ups
 are known (v1.2): the waits that used to sleep until woken now check again in slices.

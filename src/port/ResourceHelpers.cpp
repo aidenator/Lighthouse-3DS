@@ -13,6 +13,8 @@
 #include "UI/cvar_prefixes.h"
 #include <spdlog/spdlog.h>
 #include <algorithm>
+#include <chrono>
+#include <thread>
 #include <cstring>
 #include <mutex>
 #include <string>
@@ -289,6 +291,14 @@ static char* LoadAndRetainResource(const std::string& path, uint32_t assetId) {
         sResourceRefCache[assetId] = res;
         return reinterpret_cast<char*>(res->GetRawPointer());
     }
+    // Callers often crash on the null next, so the log is written out first
+    SPDLOG_ERROR("Couldn't load asset 0x{:X} ({})", assetId, path);
+#ifdef __3DS__
+    if (auto logger = Ship::Context::GetRawInstance()->GetLogger()) {
+        logger->flush();
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(300));
+#endif
     return nullptr;
 }
 

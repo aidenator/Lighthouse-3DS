@@ -38,6 +38,7 @@ public:
     void StartFrame() const;
     static void Create(int argc, char* argv[]);
     void FinishInit();
+    void StartLogging();
     void RunExtract(int argc, char* argv[]);
     // Render a GUI-only frame (no game tick). Used to keep the ImGui progress
     // modal live while an inline mod extraction runs on a worker thread.

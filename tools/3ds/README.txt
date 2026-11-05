@@ -43,9 +43,12 @@ takes about a minute and a half, with a progress bar on the bottom screen.
 Later starts use that bk.o2r. Leave the ROM on the card: when a new release
 needs a different bk.o2r, the app makes it again by itself.
 
-An Old 3DS, 3DS XL or 2DS can't make bk.o2r itself (not enough memory). Make
-it on a computer instead, with the PC build from this same release, and put it
-in the lighthouse folder instead of the ROM. bk.o2r files made by other
+On an Old 3DS, 3DS XL or 2DS, install Lighthouse.cia (see above) and start it
+from the HOME Menu the first time: only the CIA has the memory to make bk.o2r
+there. It restarts itself to make bk.o2r, which takes about three and a half
+minutes, then restarts into the game. Or make bk.o2r on a computer, with the PC
+build from this same release, and put it in the lighthouse folder instead of
+the ROM. bk.o2r files made by other
 Lighthouse versions, including official HarbourMasters releases, do not work
 with this 3DS app.
 

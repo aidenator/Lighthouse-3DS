@@ -21,6 +21,16 @@
 
 #ifdef __3DS__
 #include <fast/backends/gfx_3ds.h>
+extern "C" {
+#include <3ds/types.h>
+#include <3ds/svc.h>
+#include <3ds/os.h>
+#include <3ds/env.h>
+#include <3ds/result.h>
+#include <3ds/srv.h>
+#include <3ds/services/fs.h>
+#include <3ds/allocator/mappable.h>
+}
 #endif
 
 namespace fs = std::filesystem;
@@ -117,7 +127,100 @@ static void ShowProgress(float fraction) {
 }
 
 #ifdef __3DS__
+extern "C" u32 __ctru_heap;
 extern "C" u32 __ctru_heap_size;
+extern "C" u32 __ctru_linear_heap;
+extern "C" u32 __ctru_linear_heap_size;
+extern "C" char* fake_heap_start;
+extern "C" char* fake_heap_end;
+
+// Extract mode: an Old 3DS's .cia has 80 MB, and making bk.o2r needs more of the normal heap than
+// is left beside the linear heap (memory the GPU can read) the game plays with. Loading uses about
+// 4 MB of linear heap, so the app restarts with a smaller one to make bk.o2r, then restarts again
+// to play. The marker file asks for it; the split is fixed when
+// the program starts, before the SD card is set up, so it's looked for with the FS service directly.
+static constexpr const char* kExtractModeMarker = "/3ds/lighthouse/extract-mode";
+static constexpr u32 kExtractLinearHeap = 6 << 20;
+// Less than this for both heaps is an Old 3DS (69 MB for the .cia, 53 MB for the .3dsx; a New 3DS has
+// about 110 MB), which plays with a smaller linear heap than libctru's split gives it
+static constexpr u32 kOldConsoleLimit = 96 << 20;
+static constexpr u32 kOldLinearHeap = 12 << 20;
+static bool sExtractMode = false;
+
+// Deletes the marker, so a failed extraction doesn't restart into extract mode again; true if it was there
+static bool TakeExtractModeMarker() {
+    if (R_FAILED(srvInit())) {
+        return false;
+    }
+    bool found = false;
+    if (R_SUCCEEDED(fsInit())) {
+        FS_Archive sdmc;
+        if (R_SUCCEEDED(FSUSER_OpenArchive(&sdmc, ARCHIVE_SDMC, fsMakePath(PATH_EMPTY, "")))) {
+            found = R_SUCCEEDED(FSUSER_DeleteFile(sdmc, fsMakePath(PATH_ASCII, kExtractModeMarker)));
+            FSUSER_CloseArchive(sdmc);
+        }
+        fsExit();
+    }
+    srvExit();
+    return found;
+}
+
+// libctru's own (2.7.0), but with the small linear heap in extract mode
+extern "C" void __system_allocateHeaps(void) {
+    Handle reslimit = 0;
+    if (R_FAILED(svcGetResourceLimit(&reslimit, CUR_PROCESS_HANDLE))) {
+        svcBreak(USERBREAK_PANIC);
+    }
+    s64 maxCommit = 0;
+    s64 currentCommit = 0;
+    ResourceLimitType reslimitType = RESLIMIT_COMMIT;
+    svcGetResourceLimitLimitValues(&maxCommit, reslimit, &reslimitType, 1);
+    svcGetResourceLimitCurrentValues(&currentCommit, reslimit, &reslimitType, 1);
+    svcCloseHandle(reslimit);
+    const u32 remaining = (u32)(maxCommit - currentCommit) & ~0xFFF;
+
+    // The .3dsx's loader owns the services at this point, and can't restart it anyway
+    sExtractMode = !envIsHomebrew() && TakeExtractModeMarker() && remaining > 2 * kExtractLinearHeap;
+    if (sExtractMode) {
+        __ctru_linear_heap_size = kExtractLinearHeap;
+        __ctru_heap_size = remaining - __ctru_linear_heap_size;
+    } else if (remaining < kOldConsoleLimit) {
+        // An Old 3DS: the game uses under 5 MB of linear heap, and runs out of the normal one with
+        // libctru's split (36 MB for the .cia) loading Spiral Mountain
+        __ctru_linear_heap_size = kOldLinearHeap;
+        __ctru_heap_size = remaining - __ctru_linear_heap_size;
+    } else {
+        // Split evenly, but with the normal heap capped at 24 MB and the linear one at 32 MB
+        constexpr u32 kHeapCap = 24 << 20;
+        constexpr u32 kLinearCap = 32 << 20;
+        __ctru_linear_heap_size = (remaining / 2) & ~0xFFF;
+        __ctru_heap_size = remaining - __ctru_linear_heap_size;
+        if (__ctru_heap_size > kHeapCap) {
+            __ctru_heap_size = kHeapCap;
+            __ctru_linear_heap_size = remaining - __ctru_heap_size;
+            if (__ctru_linear_heap_size > kLinearCap) {
+                __ctru_linear_heap_size = kLinearCap;
+                __ctru_heap_size = remaining - __ctru_linear_heap_size;
+            }
+        }
+    }
+
+    if (R_FAILED(svcControlMemory(&__ctru_heap, OS_HEAP_AREA_BEGIN, 0x0, __ctru_heap_size, MEMOP_ALLOC,
+                                  (MemPerm)(MEMPERM_READ | MEMPERM_WRITE)))) {
+        svcBreak(USERBREAK_PANIC);
+    }
+    if (R_FAILED(svcControlMemory(&__ctru_linear_heap, 0x0, 0x0, __ctru_linear_heap_size, MEMOP_ALLOC_LINEAR,
+                                  (MemPerm)(MEMPERM_READ | MEMPERM_WRITE)))) {
+        svcBreak(USERBREAK_PANIC);
+    }
+    mappableInit(OS_MAP_AREA_BEGIN, OS_MAP_AREA_END);
+    fake_heap_start = (char*)__ctru_heap;
+    fake_heap_end = fake_heap_start + __ctru_heap_size;
+}
+
+bool Slim_InExtractMode() {
+    return sExtractMode;
+}
 
 // Heap still free: the app's whole heap is set aside at start, so it's that less what is in use
 static size_t FreeHeap() {
@@ -168,12 +271,28 @@ static RomExtractResult ExtractRomArchive(const std::string& folder, const std::
     // An Old 3DS has about half the memory: say so, rather than run out partway
     const size_t freeHeap = FreeHeap();
     SPDLOG_INFO("{} KB of heap free for making {}", freeHeap / 1024, archiveName);
-    if (freeHeap < kHeapNeeded) {
+    // In extract mode it's tried with what there is: the most this console can give
+    if (freeHeap < kHeapNeeded && !sExtractMode) {
+        // In extract mode the normal heap gets all but kExtractLinearHeap of both heaps
+        const size_t used = mallinfo().uordblks;
+        const size_t both = (size_t)__ctru_heap_size + __ctru_linear_heap_size;
+        constexpr size_t kWorthIt = 4 << 20;
+        if (!envIsHomebrew() && both > kExtractLinearHeap + used + freeHeap + kWorthIt) {
+            FILE* marker = fopen((std::string("sdmc:") + kExtractModeMarker).c_str(), "w");
+            if (marker != nullptr) {
+                fclose(marker);
+                SPDLOG_INFO("Restarting with {} KB of heap free to make {}",
+                            (both - kExtractLinearHeap - used) / 1024, archiveName);
+                Fast::Set3dsLoadProgress(0.0f, "Restarting to make bk.o2r");
+                Fast::Restart3dsApp();
+            }
+            SPDLOG_ERROR("Can't write {}", kExtractModeMarker);
+        }
         return fail("Not enough memory to make " + archiveName,
                     "This console has " + std::to_string(freeHeap / (1024 * 1024)) + " MB free and needs about " +
-                        std::to_string(kHeapNeeded / (1024 * 1024)) + " MB, which an Old 3DS doesn't have. Make " +
-                        archiveName + " on a New 3DS, or with a PC build of Lighthouse 3DS, and copy it to\n" +
-                        folder + "/");
+                        std::to_string(kHeapNeeded / (1024 * 1024)) + " MB. On an Old 3DS, install "
+                        "Lighthouse.cia with FBI and start it from the HOME Menu: it can make " + archiveName +
+                        ". Or make it with a PC build of Lighthouse 3DS, and copy it to\n" + folder + "/");
     }
 #endif
 

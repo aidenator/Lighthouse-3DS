@@ -1,9 +1,9 @@
 name: Release 3DS
 
 # A 3DS release: push a tag named after the version in CMakeLists.txt's LH_3DS_VERSION, such as
-# 3ds-v1.0. The app makes bk.o2r from the player's ROM; the PC builds go in too while an Old 3DS
-# can't (not enough memory), so its owners can make bk.o2r on a computer. Set skip-pc-builds to
-# drop them; the packaging below follows whatever was built.
+# 3ds-v1.0. The app makes bk.o2r from the player's ROM (on an Old 3DS, only the .cia can); the PC
+# builds go in too, so bk.o2r can also be made on a computer. Set skip-pc-builds to drop them; the
+# packaging below follows whatever was built.
 on:
   push:
     tags:
@@ -65,9 +65,10 @@ jobs:
           EOF
           if [ "$PC_BUILDS" = true ]; then
             cat >> notes.md <<EOF
-          **An Old 3DS can't make \`bk.o2r\` itself** (not enough memory). Make it on a computer with the PC
-          build below instead: run it, choose your ROM, and put the \`bk.o2r\` it writes in \`3ds/lighthouse/\`.
-          Use the PC build from this release; \`README-3DS.txt\` says where each one writes \`bk.o2r\`.
+          **On an Old 3DS, 3DS XL or 2DS, use the \`.cia\` for the first start:** only it has the memory to make
+          \`bk.o2r\` there (about three and a half minutes). Or make \`bk.o2r\` on a computer with the PC build
+          below: run it, choose your ROM, and put the \`bk.o2r\` it writes in \`3ds/lighthouse/\`. Use the PC
+          build from this release; \`README-3DS.txt\` says where each one writes \`bk.o2r\`.
 
           ## Downloads
 

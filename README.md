@@ -41,8 +41,10 @@ a Banjo-Kazooie ROM.
 3. **Optional: install to the HOME Menu.** Install `Lighthouse.cia`, also in the zip, with FBI. It
    starts from the HOME Menu and uses the same files and saves.
 
-An Old 3DS can't make `bk.o2r` itself (not enough memory). Make it on a computer with the PC build
-from the same release, and put it in `3ds/lighthouse/` instead of the ROM. A `bk.o2r` made by any
+On an Old 3DS, 3DS XL or 2DS, only the `.cia` can make `bk.o2r`: install it and start it from the
+HOME Menu the first time. It restarts itself to make `bk.o2r`, in about three and a half minutes.
+Or make `bk.o2r` on a computer with the PC build from the same release, and put it in
+`3ds/lighthouse/` instead of the ROM. A `bk.o2r` made by any
 other Lighthouse version will not work.
 
 `README-3DS.txt` in the zip has the full steps. Your ROM must be one of these

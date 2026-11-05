@@ -208,6 +208,14 @@ On an Old 3DS (two cores, 268 MHz, no L2 cache), the game logic and the replay f
 0, and interpolation is off. A New 3DS made to act like an Old one runs at about 10 fps, in slow
 motion. See the [roadmap](ROADMAP.md#old-3ds-speed).
 
+Memory, measured on an original 2DS. The `.cia` gets the 80 MB mode, 69 MB of it for the two heaps
+after the program itself; the `.3dsx` gets 53 MB. libctru caps the normal heap at 24 MB in its split
+and gives the linear heap up to 32 MB, so the `.cia` had 36.6 MB of normal heap and the `.3dsx`
+24 MB. The game uses under 5 MB of linear heap, and the normal heap ran out loading Spiral
+Mountain's map, in over 100,000 free pieces. So the app replaces libctru's `__system_allocateHeaps`
+(`src/port/Slim/RomExtract.cpp`): with under 96 MB for both heaps (an Old 3DS) the linear heap
+gets 12 MB, and in extract mode 6 MB.
+
 ## Startup
 
 From about 15.8 s to about 2.5 s:
@@ -242,7 +250,12 @@ kept everything until the end:
 | Don't keep a copy of every exported file for the C-code export, which a binary export never reads | 76 MB |
 | Copy only the asset table (28 KB) to read it, not the rest of the ROM | 60 MB |
 
-The peak on the 3DS is 48 MB, including the 16 MB ROM. Writing the zip straight to the file instead
+The peak on the 3DS was 48 MB, including the 16 MB ROM. Two more changes, for the Old 3DS (62 MB
+of heap in extract mode): the cartridge reader still copied the ROM while reading its header, and
+its byte reader copied it again, so three 16 MB copies were briefly alive and the last one found
+no 16 MB block; it now reads the header in place. And the archive writer's buffer grew to take
+the 1.5 MB central directory at the end, when the heap was in 18,000 pieces with no 2.5 MB block
+left; it now sets aside 4 MB at the start. Writing the zip straight to the file instead
 of building it in memory hardly changed the peak, but it mattered for speed (below).
 
 ### Time
