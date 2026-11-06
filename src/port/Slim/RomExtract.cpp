@@ -300,6 +300,7 @@ static RomExtractResult ExtractRomArchive(const std::string& folder, const std::
     ShowProgress(0.0f);
     std::vector<uint8_t> rom;
     fs::path romPath;
+    std::string romHash;
     for (const auto& candidate : roms) {
         if (fs::file_size(candidate, ec) != kRomSize) {
             SPDLOG_INFO("Not using {}: not the size of a Banjo-Kazooie ROM", candidate.string());
@@ -307,7 +308,7 @@ static RomExtractResult ExtractRomArchive(const std::string& folder, const std::
         }
         rom = ReadFile(candidate);
         ToBigEndian(rom);
-        if (!rom.empty() && config[Companion::CalculateHash(rom)]) {
+        if (!rom.empty() && config[romHash = Companion::CalculateHash(rom)]) {
             romPath = candidate;
             break;
         }
@@ -346,6 +347,8 @@ static RomExtractResult ExtractRomArchive(const std::string& folder, const std::
     const std::string here = ".";
     try {
         Companion::Instance = new Companion(std::move(rom), ArchiveType::O2R, false, here, here);
+        // Hashing the ROM again takes seconds on an Old 3DS
+        Companion::Instance->SetRomHash(romHash);
         // Twice the size, but compressing would add almost a minute on the 3DS
         Companion::Instance->GetConfig().storeUncompressed = true;
         Companion::Instance->RegisterCompanionFile("portVersion", PortVersion());

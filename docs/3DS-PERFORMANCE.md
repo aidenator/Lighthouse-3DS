@@ -295,6 +295,33 @@ Torch's zip writer now keeps the archive in memory from the last written block o
 whole aligned 1 MiB blocks, once nothing in them can change. The only unaligned write is the end of
 the file. The archive's writes now take about 4 s in all.
 
+### Old 3DS profile
+
+On an original 2DS (from the `.cia`, in extract mode) `bk.o2r` took 199 s. Sampling Torch's thread
+with Rosalina's debugger (below) showed where:
+
+| Where | Share of Torch's time |
+|---|---|
+| Model assets (`ModelFactory`), which build a YAML node for each texture, vertex block and display list in a model and register each one | at least a third |
+| Making and assigning YAML nodes, and their reference counts | at least a quarter |
+| `malloc` and `free`, about half of it the lock newlib takes on every call | about 30% |
+| Reading numbers from YAML (`as<int>`), which builds a `std::stringstream` each time | at least 12% |
+| Decompression | about 9% |
+| SD card writes | about 5% |
+
+Many backtraces stopped inside the C library, so the shares of the callers are lower bounds. Two
+changes took it to 188 s:
+
+* **The ROM is hashed once.** Lighthouse hashes it to identify it and passes the hash to Torch,
+  which hashed it again: 3.6 s on an Old 3DS.
+* **`GetSafeNode` reads integers itself**, with one lookup of the key instead of up to three, and
+  `strtoull` instead of yaml-cpp's stream. Anything it can't read exactly as yaml-cpp would goes to
+  yaml-cpp. Torch's part went from 195 s to 187 s, and the four archives made on a PC are
+  unchanged.
+
+The profiler pauses the console for each sample, which doubled the run (339 s) and the ROM read
+the most (50 s instead of 5 s), so its timings aren't comparable with a normal run.
+
 ### What's left
 
 * **Torch's own parsing takes about 140 s of CPU time in the test app.** It's spread across
