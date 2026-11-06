@@ -319,6 +319,21 @@ changes took it to 188 s:
   yaml-cpp. Torch's part went from 195 s to 187 s, and the four archives made on a PC are
   unchanged.
 
+Three more took it to 113 s:
+
+| Change | Old 3DS |
+|---|---|
+| Hash once, and `GetSafeNode` reads integers | 199 → 188 s |
+| **Slab allocator.** Torch makes about 12 million allocations, 99% of them 256 bytes or less. While `bk.o2r` is made, those on Torch's thread come from 64 KB chunks of one block size each, with no lock (`src/port/Slim/ExtractHeap.cpp`). Frees from other threads go on a lock-free list that Torch's thread takes back. A chunk goes back to `malloc` once it's empty. It peaked at 12.5 MB; 768 KB was still in use when Torch finished (blocks kept by statics), which stays until those are freed. | 188 → 134 s |
+| **Display lists are read in place.** `DListFactory` copied each segment into a `BinaryReader` for every display list, 1.49 GB in all. | 134 → 117 s |
+| **Asset nodes are passed by reference**, and each asset's `offset` is looked up once. Every copy of a `YAML::Node` changes an atomic reference count, with memory barriers, like the `shared_ptr` copies that cost frames in the renderer. | 117 → 113 s |
+
+A New 2DS XL makes it in 37 s (about 80 s before). Each archive was checked against the PC's,
+file for file. A profile of the slab build put about 23% of Torch's time in yaml-cpp's key
+lookups (each compares every key as a string), 7% in `shared_ptr` reference counts, 7% in SD
+writes and 7% in decompression. The rest of yaml-cpp's cost is inside the library, which we
+don't patch.
+
 The profiler pauses the console for each sample, which doubled the run (339 s) and the ROM read
 the most (50 s instead of 5 s), so its timings aren't comparable with a normal run.
 

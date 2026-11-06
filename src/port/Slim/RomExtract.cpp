@@ -1,6 +1,7 @@
 #ifdef LH_ROM_EXTRACT
 
 #include "RomExtract.h"
+#include "ExtractHeap.h"
 
 #include <algorithm>
 #include <atomic>
@@ -345,6 +346,7 @@ static RomExtractResult ExtractRomArchive(const std::string& folder, const std::
     const fs::path previousDir = fs::current_path(ec);
     fs::current_path(extractDir, ec);
     const std::string here = ".";
+    ExtractHeap_Begin();
     try {
         Companion::Instance = new Companion(std::move(rom), ArchiveType::O2R, false, here, here);
         // Hashing the ROM again takes seconds on an Old 3DS
@@ -377,6 +379,7 @@ static RomExtractResult ExtractRomArchive(const std::string& folder, const std::
     delete Companion::Instance;
     Companion::Instance = nullptr;
     spdlog::set_level(logLevel);
+    ExtractHeap_End();
     fs::current_path(previousDir, ec);
 
     if (!ok || !fs::exists(made, ec)) {

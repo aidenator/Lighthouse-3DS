@@ -32,9 +32,11 @@ promises.
   `bk.o2r` on an Old 3DS (about 42 MB at most). The log now starts before `bk.o2r` is made, and an
   asset that fails to load is logged. Torch's commit is part of the `bk.o2r` stamp, so v1.3 makes
   `bk.o2r` again once, with the same contents; the release notes should say so.
-* **`bk.o2r` is made faster:** 188 s instead of 199 s on an Old 3DS. The ROM is hashed once
-  instead of twice, and Torch reads numbers from its YAML files without a `std::stringstream` each
-  time. Details in [3DS-PERFORMANCE.md](3DS-PERFORMANCE.md#old-3ds-profile).
+* **`bk.o2r` is made faster:** 113 s instead of 199 s on an Old 3DS, and 37 s instead of about
+  80 s on a New 2DS XL. The ROM is hashed once instead of twice, Torch reads numbers from its YAML
+  files without a `std::stringstream` each time, small allocations come from a slab allocator
+  while it runs, display lists are read in place instead of copied, and asset nodes are passed by
+  reference. Details in [3DS-PERFORMANCE.md](3DS-PERFORMANCE.md#old-3ds-profile).
 
 ## v1.2
 
