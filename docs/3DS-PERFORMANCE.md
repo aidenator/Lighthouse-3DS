@@ -293,7 +293,8 @@ Two things made the archive writes slow:
 
 Torch's zip writer now keeps the archive in memory from the last written block on, and writes only
 whole aligned 1 MiB blocks, once nothing in them can change. The only unaligned write is the end of
-the file. The archive's writes now take about 4 s in all.
+the file. Even so, the 47 MB uncompressed archive took Torch's thread about 15 s of waiting on
+a New 2DS XL, so the blocks now go out on a writer thread (see below).
 
 ### Old 3DS profile
 
@@ -319,7 +320,7 @@ changes took it to 188 s:
   yaml-cpp. Torch's part went from 195 s to 187 s, and the four archives made on a PC are
   unchanged.
 
-Three more took it to 113 s:
+More changes took it to 104 s:
 
 | Change | Old 3DS |
 |---|---|
@@ -327,12 +328,15 @@ Three more took it to 113 s:
 | **Slab allocator.** Torch makes about 12 million allocations, 99% of them 256 bytes or less. While `bk.o2r` is made, those on Torch's thread come from 64 KB chunks of one block size each, with no lock (`src/port/Slim/ExtractHeap.cpp`). Frees from other threads go on a lock-free list that Torch's thread takes back. A chunk goes back to `malloc` once it's empty. It peaked at 12.5 MB; 768 KB was still in use when Torch finished (blocks kept by statics), which stays until those are freed. | 188 → 134 s |
 | **Display lists are read in place.** `DListFactory` copied each segment into a `BinaryReader` for every display list, 1.49 GB in all. | 134 → 117 s |
 | **Asset nodes are passed by reference**, and each asset's `offset` is looked up once. Every copy of a `YAML::Node` changes an atomic reference count, with memory barriers, like the `shared_ptr` copies that cost frames in the renderer. | 117 → 113 s |
+| **The archive is written on a thread of its own.** Torch hands each finished set of 1 MiB blocks to a writer thread and goes on parsing; it only waits if the previous set isn't written yet. A `std::thread` on the 3DS starts at priority 63, so on Torch's core it would only run while Torch waits: it raises itself to one above Torch's. The file is also grown 8 MB at a time with `ftruncate` ahead of the writes, then cut to its size at the end. | 113 → 104 s |
 
-A New 2DS XL makes it in 37 s (about 80 s before). Each archive was checked against the PC's,
-file for file. A profile of the slab build put about 23% of Torch's time in yaml-cpp's key
+A New 2DS XL makes it in 30 s (about 80 s before; 37 s before the writer thread). Each archive
+was checked against the PC's, file for file. A profile of the slab build on the original 2DS put about 23% of Torch's time in yaml-cpp's key
 lookups (each compares every key as a string), 7% in `shared_ptr` reference counts, 7% in SD
-writes and 7% in decompression. The rest of yaml-cpp's cost is inside the library, which we
-don't patch.
+writes and 7% in decompression. A denser profile on the New 2DS XL (one gdb session kept
+attached, about 2.4 samples a second) found Torch's thread waiting on SD writes about a quarter
+of the time, which led to the writer thread. The rest of yaml-cpp's cost is inside the library,
+which we don't patch.
 
 The profiler pauses the console for each sample, which doubled the run (339 s) and the ROM read
 the most (50 s instead of 5 s), so its timings aren't comparable with a normal run.
