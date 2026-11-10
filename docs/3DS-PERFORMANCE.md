@@ -208,6 +208,22 @@ On an Old 3DS (two cores, 268 MHz, no L2 cache), the game logic and the replay f
 0, and interpolation is off. A New 3DS made to act like an Old one runs at about 10 fps, in slow
 motion. See the [roadmap](ROADMAP.md#old-3ds-speed).
 
+Measured on an original 2DS in Mumbo's Mountain (about 1,200 triangles in 185 draws): 30 fps in
+light areas, about 17 fps in the heavy ones. The renderer is CPU-bound on core 0: drawing takes about
+30 ms, replaying it 11 ms and the game logic about 12 ms, while the GPU needs only 4 to 7 ms. What
+helped (15.4 to about 17 fps): skipping the replay's vertex scan when the interpreter says which
+inputs vary, refreshing `mallinfo` (80 ms a call) only every tenth stats line, and resolving each
+opcode's handler once per ucode.
+
+What didn't:
+
+- **The replay on core 1.** The Homebrew Launcher grants 80% of core 1, but the system uses most of
+  it: the replay took 130 to 160 ms there instead of 20 ms on core 0, and Mumbo's Mountain fell to
+  6 or 7 fps.
+- **`3dslink -s` while measuring.** Every `printf` waits for the Wi-Fi, and the game thread waits
+  for the renderer's `printf` lock: the stats link alone held the 2DS at 6 to 9 fps. Measure from the
+  Homebrew Launcher with stdout kept in memory and written to the SD card instead.
+
 Memory, measured on an original 2DS. The `.cia` gets the 80 MB mode, 69 MB of it for the two heaps
 after the program itself; the `.3dsx` gets 53 MB. libctru caps the normal heap at 24 MB in its split
 and gives the linear heap up to 32 MB, so the `.cia` had 36.6 MB of normal heap and the `.3dsx`
